@@ -5,6 +5,7 @@
 
 #include "BuyAction.h"
 
+#include "AuctionHouseMgr.h"
 #include "BudgetValues.h"
 #include "Event.h"
 #include "ItemCountValue.h"
@@ -13,18 +14,26 @@
 #include "Playerbots.h"
 #include "StatsWeightCalculator.h"
 
+#include <limits>
+
 bool BuyAction::Execute(Event event)
 {
     bool buyUseful = false;
+    bool buyAuction = false;
     ItemIds itemIds;
     std::string const link = event.getParam();
 
     if (link == "vendor")
         buyUseful = true;
+    else if (link == "auction")
+        buyAuction = true;
     else
     {
         itemIds = chat->parseItems(link);
     }
+
+    if (buyAuction)
+        return BuyFromAuctionHouse();
 
     GuidVector vendors = botAI->GetAiObjectContext()->GetValue<GuidVector>("nearest npcs")->Get();
 
@@ -220,6 +229,151 @@ bool BuyAction::Execute(Event event)
     }
 
     return true;
+}
+
+bool BuyAction::BuyFromAuctionHouse()
+{
+    GuidVector npcs = botAI->GetAiObjectContext()->GetValue<GuidVector>("nearest npcs")->Get();
+
+    ObjectGuid auctioneerGuid;
+    Creature* auctioneer = nullptr;
+    for (ObjectGuid const& guid : npcs)
+    {
+        auctioneer = bot->GetNPCIfCanInteractWith(guid, UNIT_NPC_FLAG_AUCTIONEER);
+        if (auctioneer)
+        {
+            auctioneerGuid = guid;
+            break;
+        }
+    }
+
+    if (!auctioneer)
+    {
+        botAI->TellError("There are no auctioneers nearby");
+        return false;
+    }
+
+    AuctionHouseObject* auctionHouse = sAuctionMgr->GetAuctionsMap(auctioneer->GetFaction());
+    if (!auctionHouse)
+        return false;
+
+    AuctionEntry* bestAuction = nullptr;
+    uint32 bestPrice = std::numeric_limits<uint32>::max();
+    uint32 scanned = 0;
+
+    for (auto itr = auctionHouse->GetAuctionsBegin(); itr != auctionHouse->GetAuctionsEnd(); ++itr)
+    {
+        if (++scanned > 300)
+            break;
+
+        AuctionEntry* auction = itr->second;
+        if (!auction || !auction->buyout)
+            continue;
+
+        if (auction->owner == bot->GetGUID())
+            continue;
+
+        ItemTemplate const* proto = sObjectMgr->GetItemTemplate(auction->item_template);
+        if (!proto)
+            continue;
+
+        NeedMoneyFor needMoneyFor = NeedMoneyFor::none;
+        if (!IsAuctionItemUseful(proto, auction->buyout, needMoneyFor))
+            continue;
+
+        if (auction->buyout < bestPrice)
+        {
+            bestPrice = auction->buyout;
+            bestAuction = auction;
+        }
+    }
+
+    if (!bestAuction)
+        return false;
+
+    return BuyAuction(auctioneerGuid, bestAuction);
+}
+
+bool BuyAction::BuyAuction(ObjectGuid auctioneerGuid, AuctionEntry* auction)
+{
+    if (!auction || !auction->buyout)
+        return false;
+
+    Creature* auctioneer = bot->GetNPCIfCanInteractWith(auctioneerGuid, UNIT_NPC_FLAG_AUCTIONEER);
+    if (!auctioneer)
+        return false;
+
+    AuctionHouseObject* auctionHouse = sAuctionMgr->GetAuctionsMap(auctioneer->GetFaction());
+    if (!auctionHouse || !auctionHouse->GetAuction(auction->Id))
+        return false;
+
+    uint32 botMoney = bot->GetMoney();
+
+    WorldPacket packet(CMSG_AUCTION_PLACE_BID);
+    packet << auctioneerGuid;
+    packet << auction->Id;
+    packet << auction->buyout;
+
+    bot->GetSession()->HandleAuctionPlaceBid(packet);
+
+    if (botAI->HasCheat(BotCheatMask::gold))
+        bot->SetMoney(botMoney);
+
+    if (auctionHouse->GetAuction(auction->Id))
+        return false;
+
+    ItemTemplate const* boughtItemProto = sObjectMgr->GetItemTemplate(auction->item_template);
+
+    std::ostringstream out;
+    out << "Buying from auction house "
+        << (boughtItemProto ? ChatHelper::FormatItem(boughtItemProto) : std::to_string(auction->item_template))
+        << " for " << auction->buyout;
+    botAI->TellMaster(out.str());
+
+    return true;
+}
+
+bool BuyAction::IsAuctionItemUseful(ItemTemplate const* proto, uint32 buyout,
+                                    NeedMoneyFor& needMoneyFor)
+{
+    if (!proto || !buyout)
+        return false;
+
+    ItemUsage usage = AI_VALUE2(ItemUsage, "item usage", proto->ItemId);
+    needMoneyFor = GetBudgetTypeForUsage(usage);
+    if (needMoneyFor == NeedMoneyFor::none)
+        return false;
+
+    if (AI_VALUE2(uint32, "free money for", uint32(needMoneyFor)) < buyout)
+        return false;
+
+    if ((proto->Class == ITEM_CLASS_CONSUMABLE || proto->Class == ITEM_CLASS_PROJECTILE) &&
+        bot->GetItemCount(proto->ItemId, true) > 200)
+        return false;
+
+    return true;
+}
+
+NeedMoneyFor BuyAction::GetBudgetTypeForUsage(ItemUsage usage) const
+{
+    switch (usage)
+    {
+        case ITEM_USAGE_REPLACE:
+        case ITEM_USAGE_EQUIP:
+        case ITEM_USAGE_BAD_EQUIP:
+        case ITEM_USAGE_BROKEN_EQUIP:
+            return NeedMoneyFor::gear;
+        case ITEM_USAGE_AMMO:
+            return NeedMoneyFor::ammo;
+        case ITEM_USAGE_QUEST:
+            return NeedMoneyFor::anything;
+        case ITEM_USAGE_USE:
+            return NeedMoneyFor::consumables;
+        case ITEM_USAGE_SKILL:
+            return NeedMoneyFor::tradeskill;
+        default:
+            return NeedMoneyFor::none;
+    }
 }
 
 bool BuyAction::BuyItem(VendorItemData const* tItems, ObjectGuid vendorguid, ItemTemplate const* proto)
