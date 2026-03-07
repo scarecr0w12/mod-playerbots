@@ -20,6 +20,7 @@ public:
     bool Execute(Event event) override;
     void Sell(FindItemVisitor* visitor);
     void Sell(Item* item);
+    bool SellToAuctionHouse(Item* item);
 };
 
 #endif
