@@ -140,6 +140,13 @@ public:
     uint32 minRandomBotPvpTime, maxRandomBotPvpTime;
     uint32 randomBotsPerInterval;
     uint32 minRandomBotsPriceChangeInterval, maxRandomBotsPriceChangeInterval;
+    bool auctionHouseRandomStackSize;
+    uint32 auctionHouseMinBidPrice;
+    uint32 auctionHouseUndercutChance;
+    uint32 auctionHouseUndercutMinPct;
+    uint32 auctionHouseUndercutMaxPct;
+    uint32 auctionHouseBuyoutMinPct;
+    uint32 auctionHouseBuyoutMaxPct;
     uint32 disabledWithoutRealPlayerLoginDelay, disabledWithoutRealPlayerLogoutDelay;
     bool randomBotJoinLfg;
 

@@ -9,8 +9,78 @@
 #include "Event.h"
 #include "ItemUsageValue.h"
 #include "ItemVisitors.h"
+#include "Log.h"
 #include "Playerbots.h"
 #include "ItemPackets.h"
+
+#include <algorithm>
+
+namespace
+{
+uint32 RoundAuctionPrice(double price)
+{
+    if (price <= 1.0)
+        return 1;
+
+    if (price < 100.0)
+        return uint32(price);
+
+    if (price < 10000.0)
+        return uint32(price / 100.0) * 100;
+
+    if (price < 100000.0)
+        return uint32(price / 1000.0) * 1000;
+
+    return uint32(price / 10000.0) * 10000;
+}
+
+uint32 GetAuctionStackCount(Item* item)
+{
+    if (!item)
+        return 0;
+
+    uint32 itemCount = item->GetCount();
+    if (!itemCount)
+        return 0;
+
+    if (!sPlayerbotAIConfig.auctionHouseRandomStackSize)
+        return itemCount;
+
+    uint32 maxStackCount = std::min<uint32>(itemCount, item->GetMaxStackCount());
+    if (maxStackCount <= 1)
+        return 1;
+
+    return urand(1, maxStackCount);
+}
+
+uint32 GetAuctionUnitPrice(Player* bot, ItemTemplate const* proto)
+{
+    if (!bot || !proto)
+        return 0;
+
+    if (proto->BuyPrice)
+        return RoundAuctionPrice(proto->BuyPrice * sRandomPlayerbotMgr.GetBuyMultiplier(bot));
+
+    if (proto->SellPrice)
+        return RoundAuctionPrice(proto->SellPrice * std::max(1.0, sRandomPlayerbotMgr.GetSellMultiplier(bot)));
+
+    return 1;
+}
+
+bool HasNearbyAuctioneer(Player* bot, GuidVector const& npcs, ObjectGuid& auctioneerGuid)
+{
+    for (ObjectGuid const& guid : npcs)
+    {
+        if (!bot->GetNPCIfCanInteractWith(guid, UNIT_NPC_FLAG_AUCTIONEER))
+            continue;
+
+        auctioneerGuid = guid;
+        return true;
+    }
+
+    return false;
+}
+}
 
 class SellItemsVisitor : public IterateItemsVisitor
 {
@@ -51,7 +121,7 @@ public:
     bool Visit(Item* item) override
     {
         ItemUsage usage = context->GetValue<ItemUsage>("item usage", item->GetEntry())->Get();
-        if (usage != ITEM_USAGE_VENDOR && usage != ITEM_USAGE_AH)
+        if (usage != ITEM_USAGE_VENDOR)
             return true;
 
         return SellItemsVisitor::Visit(item);
@@ -113,7 +183,7 @@ bool SellAction::Execute(Event event)
         return true;
     }
 
-    botAI->TellError("Usage: s gray/*/vendor/[item link]");
+    botAI->TellError("Usage: s gray/*/vendor/auction/[item link]");
     return false;
 }
 
@@ -132,27 +202,37 @@ bool SellAction::SellToAuctionHouse(Item* item)
     GuidVector npcs = botAI->GetAiObjectContext()->GetValue<GuidVector>("nearest npcs")->Get();
 
     ObjectGuid auctioneerGuid;
-    Creature* auctioneer = nullptr;
-    for (ObjectGuid const& guid : npcs)
+    if (!HasNearbyAuctioneer(bot, npcs, auctioneerGuid))
     {
-        auctioneer = bot->GetNPCIfCanInteractWith(guid, UNIT_NPC_FLAG_AUCTIONEER);
-        if (auctioneer)
-        {
-            auctioneerGuid = guid;
-            break;
-        }
+        LOG_DEBUG("playerbots", "{}: cannot post item {} to auction house - no nearby auctioneer",
+            bot->GetName(), proto->ItemId);
+        return false;
     }
 
-    if (!auctioneer)
+    uint32 itemCount = GetAuctionStackCount(item);
+    if (!itemCount)
         return false;
 
-    uint32 unitPrice = proto->BuyPrice ? proto->BuyPrice / 4 : proto->SellPrice * 5;
+    uint32 unitPrice = GetAuctionUnitPrice(bot, proto);
     if (!unitPrice)
-        unitPrice = 1;
+        return false;
 
-    uint32 itemCount = item->GetCount();
-    uint32 startBid = std::max<uint32>(itemCount * unitPrice, 100);
-    uint32 buyout = std::max<uint32>(startBid + 1, startBid * 12 / 10);
+    if (sPlayerbotAIConfig.auctionHouseUndercutChance &&
+        urand(1, 100) <= sPlayerbotAIConfig.auctionHouseUndercutChance)
+    {
+        uint32 minPct = std::max<uint32>(100, sPlayerbotAIConfig.auctionHouseUndercutMinPct);
+        uint32 maxPct = std::max<uint32>(minPct, sPlayerbotAIConfig.auctionHouseUndercutMaxPct);
+        unitPrice = std::max<uint32>(1, unitPrice * 100 / urand(minPct, maxPct));
+    }
+
+    uint32 startBid = std::max<uint32>(sPlayerbotAIConfig.auctionHouseMinBidPrice,
+                                        RoundAuctionPrice(double(itemCount) * unitPrice));
+    uint32 minBuyoutPct = std::max<uint32>(100, sPlayerbotAIConfig.auctionHouseBuyoutMinPct);
+    uint32 maxBuyoutPct = std::max<uint32>(minBuyoutPct, sPlayerbotAIConfig.auctionHouseBuyoutMaxPct);
+    uint32 buyout = RoundAuctionPrice(double(startBid) * urand(minBuyoutPct, maxBuyoutPct) / 100.0);
+    if (buyout <= startBid)
+        buyout = startBid + 1;
+
     uint32 etime = uint32(12 * HOUR / MINUTE);
 
     uint32 oldCount = bot->GetItemCount(proto->ItemId, true);
@@ -173,10 +253,19 @@ bool SellAction::SellToAuctionHouse(Item* item)
         bot->SetMoney(botMoney);
 
     if (bot->GetItemCount(proto->ItemId, true) >= oldCount)
+    {
+        LOG_INFO("playerbots",
+            "{}: failed to post {} x{} to auction house via {} (bid={}, buyout={})",
+            bot->GetName(), proto->Name1, itemCount, auctioneerGuid.ToString(), startBid, buyout);
         return false;
+    }
+
+    LOG_INFO("playerbots",
+        "{}: posted {} x{} to auction house via {} (bid={}, buyout={})",
+        bot->GetName(), proto->Name1, itemCount, auctioneerGuid.ToString(), startBid, buyout);
 
     std::ostringstream out;
-    out << "Posting to auction house " << chat->FormatItem(proto)
+    out << "Posting to auction house " << chat->FormatItem(proto, itemCount)
         << " for " << startBid << ".." << buyout;
     botAI->TellMaster(out);
 
@@ -195,6 +284,13 @@ void SellAction::Sell(FindItemVisitor* visitor)
 
 void SellAction::Sell(Item* item)
 {
+    if (!item)
+        return;
+
+    ItemUsage usage = context->GetValue<ItemUsage>("item usage", item->GetEntry())->Get();
+    if (usage == ITEM_USAGE_AH && SellToAuctionHouse(item))
+        return;
+
     std::ostringstream out;
 
     GuidVector vendors = botAI->GetAiObjectContext()->GetValue<GuidVector>("nearest npcs")->Get();

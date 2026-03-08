@@ -2199,6 +2199,25 @@ AiPlayerbot.PremadeAvoidAoe = 62234-4
 
 AiPlayerbot.MinRandomBotsPriceChangeInterval = 7200
 AiPlayerbot.MaxRandomBotsPriceChangeInterval = 172800
+
+# Auction house pricing for items marked as ITEM_USAGE_AH
+# RandomStackSize = 1 posts a random partial stack when possible, 0 posts the full stack
+AiPlayerbot.AuctionHouseRandomStackSize = 1
+
+# Minimum opening bid when bots post to the auction house
+AiPlayerbot.AuctionHouseMinBidPrice = 100
+
+# Chance in percent to undercut the base item valuation before computing bid and buyout
+AiPlayerbot.AuctionHouseUndercutChance = 15
+
+# If undercut triggers, the base value is divided by a random percent in this range
+AiPlayerbot.AuctionHouseUndercutMinPct = 110
+AiPlayerbot.AuctionHouseUndercutMaxPct = 200
+
+# Buyout is derived from the opening bid using a random percent in this range
+AiPlayerbot.AuctionHouseBuyoutMinPct = 110
+AiPlayerbot.AuctionHouseBuyoutMaxPct = 133
+
 AiPlayerbot.MinRandomBotChangeStrategyTime = 180
 AiPlayerbot.MaxRandomBotChangeStrategyTime = 720
 

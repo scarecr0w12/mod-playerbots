@@ -6,6 +6,7 @@
 #include "ChooseTravelTargetAction.h"
 
 #include "ChatHelper.h"
+#include "ItemUsageValue.h"
 #include "LootObjectStack.h"
 #include "Playerbots.h"
 
@@ -51,7 +52,11 @@ void ChooseTravelTargetAction::getNewTarget(TravelTarget* newTarget, TravelTarge
              AI_VALUE2(bool, "group or", "should repair,can repair,following party,near leader")
             )
         {
-            foundTarget = SetRpgTarget(newTarget);                           //Go to town to sell items or repair
+            if (AI_VALUE2(uint32, "item count", "usage " + std::to_string(ITEM_USAGE_AH)) > 0)
+                foundTarget = SetNpcFlagTarget(newTarget, { UNIT_NPC_FLAG_AUCTIONEER });
+
+            if (!foundTarget)
+                foundTarget = SetRpgTarget(newTarget);                       //Go to town to sell items or repair
         }
     }
 
@@ -266,7 +271,9 @@ void ChooseTravelTargetAction::ReportTravelTarget(TravelTarget* newTarget, Trave
 
         out << " for ";
 
-        if (AI_VALUE2(bool, "group or", "should sell,can sell"))
+        if (AI_VALUE2(uint32, "item count", "usage " + std::to_string(ITEM_USAGE_AH)) > 0)
+            out << "auction house";
+        else if (AI_VALUE2(bool, "group or", "should sell,can sell"))
             out << "selling items";
         else if (AI_VALUE2(bool, "group or", "should repair,can repair"))
             out << "repairing";

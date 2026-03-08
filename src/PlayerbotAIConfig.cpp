@@ -216,6 +216,13 @@ bool PlayerbotAIConfig::Initialize()
         sConfigMgr->GetOption<int32>("AiPlayerbot.MinRandomBotsPriceChangeInterval", 2 * HOUR);
     maxRandomBotsPriceChangeInterval =
         sConfigMgr->GetOption<int32>("AiPlayerbot.MaxRandomBotsPriceChangeInterval", 48 * HOUR);
+    auctionHouseRandomStackSize = sConfigMgr->GetOption<bool>("AiPlayerbot.AuctionHouseRandomStackSize", true);
+    auctionHouseMinBidPrice = sConfigMgr->GetOption<uint32>("AiPlayerbot.AuctionHouseMinBidPrice", 100);
+    auctionHouseUndercutChance = sConfigMgr->GetOption<uint32>("AiPlayerbot.AuctionHouseUndercutChance", 15);
+    auctionHouseUndercutMinPct = sConfigMgr->GetOption<uint32>("AiPlayerbot.AuctionHouseUndercutMinPct", 110);
+    auctionHouseUndercutMaxPct = sConfigMgr->GetOption<uint32>("AiPlayerbot.AuctionHouseUndercutMaxPct", 200);
+    auctionHouseBuyoutMinPct = sConfigMgr->GetOption<uint32>("AiPlayerbot.AuctionHouseBuyoutMinPct", 110);
+    auctionHouseBuyoutMaxPct = sConfigMgr->GetOption<uint32>("AiPlayerbot.AuctionHouseBuyoutMaxPct", 133);
     randomBotJoinLfg = sConfigMgr->GetOption<bool>("AiPlayerbot.RandomBotJoinLfg", true);
 
     restrictHealerDPS = sConfigMgr->GetOption<bool>("AiPlayerbot.HealerDPSMapRestriction", false);
