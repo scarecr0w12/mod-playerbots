@@ -16,6 +16,7 @@
 #include "Playerbots.h"
 #include "PossibleRpgTargetsValue.h"
 #include "SocialMgr.h"
+#include "Log.h"
 
 void RpgHelper::OnExecute(std::string nextAction)
 {
@@ -252,7 +253,10 @@ Event RpgBuyAction::ActionEvent(Event /*event*/)
 {
     GuidPosition guidP = rpg->guidP();
     if (guidP.HasNpcFlag(UNIT_NPC_FLAG_AUCTIONEER))
+    {
+        LOG_INFO("playerbots", "{}: selected RPG auction buy action", bot->GetName());
         return Event("rpg action", "auction");
+    }
 
     return Event("rpg action", "vendor");
 }
@@ -263,7 +267,10 @@ Event RpgSellAction::ActionEvent(Event /*event*/)
 {
     GuidPosition guidP = rpg->guidP();
     if (guidP.HasNpcFlag(UNIT_NPC_FLAG_AUCTIONEER))
+    {
+        LOG_INFO("playerbots", "{}: selected RPG auction sell action", bot->GetName());
         return Event("rpg action", "auction");
+    }
 
     return Event("rpg action", "vendor");
 }

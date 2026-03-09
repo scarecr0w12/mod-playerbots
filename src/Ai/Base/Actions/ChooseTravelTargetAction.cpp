@@ -60,6 +60,15 @@ void ChooseTravelTargetAction::getNewTarget(TravelTarget* newTarget, TravelTarge
         }
     }
 
+    // Visit auctioneers as part of normal RPG behavior
+    if (!foundTarget && bot->GetLevel() > 5)
+    {
+        bool hasAuctionItems =
+            AI_VALUE2(uint32, "item count", "usage " + std::to_string(ITEM_USAGE_AH)) > 0;
+        if (hasAuctionItems || urand(1, 100) <= 30)
+            foundTarget = SetNpcFlagTarget(newTarget, { UNIT_NPC_FLAG_AUCTIONEER });
+    }
+
     //Rpg in city
     if (!foundTarget && urand(1, 100) > 90 && bot->GetLevel() > 5)           //10% chance
     {

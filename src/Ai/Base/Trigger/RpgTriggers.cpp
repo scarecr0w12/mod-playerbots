@@ -127,6 +127,9 @@ bool RpgBuyTrigger::IsActive()
     if (!hasVendor && !hasAuctioneer)
         return false;
 
+    if (hasAuctioneer)
+        return true;
+
     if (hasVendor && AI_VALUE(uint8, "durability") > 50)
         return false;
 
@@ -140,9 +143,13 @@ bool RpgSellTrigger::IsActive()
 {
     GuidPosition guidP(getGuidP());
 
-    if (!guidP.HasNpcFlag(UNIT_NPC_FLAG_VENDOR) &&
-        !guidP.HasNpcFlag(UNIT_NPC_FLAG_AUCTIONEER))
+    bool hasVendor = guidP.HasNpcFlag(UNIT_NPC_FLAG_VENDOR);
+    bool hasAuctioneer = guidP.HasNpcFlag(UNIT_NPC_FLAG_AUCTIONEER);
+    if (!hasVendor && !hasAuctioneer)
         return false;
+
+    if (hasAuctioneer)
+        return true;
 
     if (!AI_VALUE(bool, "can sell"))
         return false;

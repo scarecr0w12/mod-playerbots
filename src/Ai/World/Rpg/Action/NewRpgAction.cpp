@@ -4,10 +4,13 @@
 #include <cstdlib>
 
 #include "BroadcastHelper.h"
+#include "AiObjectContext.h"
 #include "ChatHelper.h"
 #include "G3D/Vector2.h"
 #include "GossipDef.h"
+#include "ItemUsageValue.h"
 #include "IVMapMgr.h"
+#include "Log.h"
 #include "NewRpgInfo.h"
 #include "NewRpgStrategy.h"
 #include "Object.h"
@@ -61,8 +64,21 @@ bool NewRpgStatusUpdateAction::Execute(Event /*event*/)
     switch (status)
     {
         case RPG_IDLE:
+        {
+            uint32 ahItemCount = botAI->GetAiObjectContext()
+                                     ->GetValue<uint32>("item count", "usage " + std::to_string(ITEM_USAGE_AH))
+                                     ->Get();
+            if (ahItemCount > 0 && CheckRpgStatusAvailable(RPG_WANDER_NPC))
+            {
+                LOG_INFO("playerbots", "[New RPG] {} forcing wander-npc for auction visit (ah items={})",
+                    bot->GetName(), ahItemCount);
+                info.ChangeToWanderNpc();
+                return true;
+            }
+
             return RandomChangeStatus({RPG_GO_CAMP, RPG_GO_GRIND, RPG_WANDER_RANDOM, RPG_WANDER_NPC, RPG_DO_QUEST,
                                        RPG_TRAVEL_FLIGHT, RPG_REST});
+        }
 
         case RPG_GO_GRIND:
         {
@@ -204,6 +220,27 @@ bool NewRpgWanderNpcAction::Execute(Event /*event*/)
             data.lastReach = getMSTime();
             if (bot->CanInteractWithQuestGiver(object))
                 InteractWithNpcOrGameObjectForQuest(data.npcOrGo);
+
+            if (Creature* creature = object->ToCreature())
+            {
+                if (creature->HasNpcFlag(UNIT_NPC_FLAG_AUCTIONEER))
+                {
+                    uint32 ahItemCount = botAI->GetAiObjectContext()
+                                             ->GetValue<uint32>("item count", "usage " + std::to_string(ITEM_USAGE_AH))
+                                             ->Get();
+
+                    if (ahItemCount > 0)
+                    {
+                        LOG_INFO("playerbots", "[New RPG] {} selected auctioneer sell (ah items={})",
+                            bot->GetName(), ahItemCount);
+                        botAI->DoSpecificAction("sell", Event("rpg action", "auction"), true);
+                    }
+
+                    LOG_INFO("playerbots", "[New RPG] {} selected auctioneer buy", bot->GetName());
+                    botAI->DoSpecificAction("buy", Event("rpg action", "auction"), true);
+                }
+            }
+
             return true;
         }
 

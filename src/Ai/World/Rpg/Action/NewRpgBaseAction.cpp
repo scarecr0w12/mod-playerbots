@@ -8,6 +8,7 @@
 #include "GameObject.h"
 #include "GossipDef.h"
 #include "GridTerrainData.h"
+#include "ItemUsageValue.h"
 #include "IVMapMgr.h"
 #include "NewRpgInfo.h"
 #include "NewRpgStrategy.h"
@@ -652,6 +653,30 @@ ObjectGuid NewRpgBaseAction::ChooseNpcOrGameObjectToInteract(bool questgiverOnly
     if (questgiverOnly)
         return ObjectGuid();
 
+    uint32 ahItemCount = AI_VALUE2(uint32, "item count", "usage " + std::to_string(ITEM_USAGE_AH));
+    if (ahItemCount > 0)
+    {
+        WorldObject* nearestAuctioneer = nullptr;
+        for (ObjectGuid& guid : possibleTargets)
+        {
+            Creature* creature = ObjectAccessor::GetCreature(*bot, guid);
+            if (!creature || !creature->IsInWorld())
+                continue;
+
+            if (!creature->HasNpcFlag(UNIT_NPC_FLAG_AUCTIONEER))
+                continue;
+
+            if (distanceLimit && bot->GetDistance(creature) > distanceLimit)
+                continue;
+
+            if (!nearestAuctioneer || bot->GetExactDist(nearestAuctioneer) > bot->GetExactDist(creature))
+                nearestAuctioneer = creature;
+        }
+
+        if (nearestAuctioneer)
+            return nearestAuctioneer->GetGUID();
+    }
+
     if (possibleTargets.empty())
         return ObjectGuid();
 
@@ -1175,6 +1200,23 @@ bool NewRpgBaseAction::CheckRpgStatusAvailable(NewRpgStatus status)
         case RPG_WANDER_NPC:
         {
             GuidVector possibleTargets = AI_VALUE(GuidVector, "possible new rpg targets");
+            if (possibleTargets.empty())
+                return false;
+
+            uint32 ahItemCount = AI_VALUE2(uint32, "item count", "usage " + std::to_string(ITEM_USAGE_AH));
+            if (!ahItemCount)
+                return possibleTargets.size() >= 3;
+
+            for (ObjectGuid const& guid : possibleTargets)
+            {
+                Creature* creature = ObjectAccessor::GetCreature(*bot, guid);
+                if (!creature || !creature->IsInWorld())
+                    continue;
+
+                if (creature->HasNpcFlag(UNIT_NPC_FLAG_AUCTIONEER))
+                    return true;
+            }
+
             return possibleTargets.size() >= 3;
         }
         case RPG_DO_QUEST:

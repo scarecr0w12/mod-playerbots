@@ -11,6 +11,7 @@
 #include "ItemCountValue.h"
 #include "ItemUsageValue.h"
 #include "ItemVisitors.h"
+#include "Log.h"
 #include "Playerbots.h"
 #include "StatsWeightCalculator.h"
 
@@ -320,9 +321,17 @@ bool BuyAction::BuyAuction(ObjectGuid auctioneerGuid, AuctionEntry* auction)
         bot->SetMoney(botMoney);
 
     if (auctionHouse->GetAuction(auction->Id))
+    {
+        LOG_INFO("playerbots", "{}: failed to buy auction {} via {} (buyout={})",
+            bot->GetName(), auction->Id, auctioneerGuid.ToString(), auction->buyout);
         return false;
+    }
 
     ItemTemplate const* boughtItemProto = sObjectMgr->GetItemTemplate(auction->item_template);
+
+    LOG_INFO("playerbots", "{}: bought {} from auction house via {} for {}",
+        bot->GetName(), boughtItemProto ? boughtItemProto->Name1 : std::to_string(auction->item_template),
+        auctioneerGuid.ToString(), auction->buyout);
 
     std::ostringstream out;
     out << "Buying from auction house "

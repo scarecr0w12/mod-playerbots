@@ -17,6 +17,25 @@
 
 namespace
 {
+constexpr uint32 AuctionHouseMaterialMinCount = 5;
+
+bool IsAuctionHouseMaterial(ItemTemplate const* proto)
+{
+    if (!proto)
+        return false;
+
+    switch (proto->Class)
+    {
+        case ITEM_CLASS_TRADE_GOODS:
+        case ITEM_CLASS_REAGENT:
+        case ITEM_CLASS_GEM:
+        case ITEM_CLASS_MISC:
+            return true;
+        default:
+            return false;
+    }
+}
+
 uint32 RoundAuctionPrice(double price)
 {
     if (price <= 1.0)
@@ -50,7 +69,14 @@ uint32 GetAuctionStackCount(Item* item)
     if (maxStackCount <= 1)
         return 1;
 
-    return urand(1, maxStackCount);
+    uint32 minStackCount = 1;
+    if (IsAuctionHouseMaterial(item->GetTemplate()) && itemCount >= AuctionHouseMaterialMinCount)
+        minStackCount = std::min<uint32>(AuctionHouseMaterialMinCount, maxStackCount);
+
+    if (maxStackCount <= minStackCount)
+        return maxStackCount;
+
+    return urand(minStackCount, maxStackCount);
 }
 
 uint32 GetAuctionUnitPrice(Player* bot, ItemTemplate const* proto)

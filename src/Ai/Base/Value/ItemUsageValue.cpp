@@ -17,6 +17,28 @@
 #include "ServerFacade.h"
 #include "StatsWeightCalculator.h"
 
+namespace
+{
+constexpr uint32 AuctionHouseMaterialMinCount = 5;
+
+bool IsAuctionHouseMaterial(ItemTemplate const* proto)
+{
+    if (!proto)
+        return false;
+
+    switch (proto->Class)
+    {
+        case ITEM_CLASS_TRADE_GOODS:
+        case ITEM_CLASS_REAGENT:
+        case ITEM_CLASS_GEM:
+        case ITEM_CLASS_MISC:
+            return true;
+        default:
+            return false;
+    }
+}
+}
+
 ItemUsage ItemUsageValue::Calculate()
 {
     ParsedItemUsage const parsed = GetItemIdFromQualifier();
@@ -58,11 +80,20 @@ ItemUsage ItemUsageValue::Calculate()
 
         if (needItem)
         {
-            float stacks = CurrentStacks(proto);
-            if (stacks < 1)
-                return ITEM_USAGE_SKILL;  // Buy more.
-            if (stacks < 2)
-                return ITEM_USAGE_KEEP;  // Keep current amount.
+            if (IsAuctionHouseMaterial(proto))
+            {
+                uint32 itemCount = bot->GetItemCount(proto->ItemId, true);
+                if (itemCount < AuctionHouseMaterialMinCount)
+                    return itemCount ? ITEM_USAGE_KEEP : ITEM_USAGE_SKILL;
+            }
+            else
+            {
+                float stacks = CurrentStacks(proto);
+                if (stacks < 1)
+                    return ITEM_USAGE_SKILL;  // Buy more.
+                if (stacks < 2)
+                    return ITEM_USAGE_KEEP;  // Keep current amount.
+            }
         }
     }
 
@@ -154,7 +185,13 @@ ItemUsage ItemUsageValue::Calculate()
     if (proto->SellPrice > 0)
     {
         if (proto->Quality >= ITEM_QUALITY_NORMAL && !isSoulbound)
+        {
+            uint32 itemCount = bot->GetItemCount(itemId, true);
+            if (IsAuctionHouseMaterial(proto) && itemCount > 0 && itemCount < AuctionHouseMaterialMinCount)
+                return ITEM_USAGE_KEEP;
+
             return ITEM_USAGE_AH;
+        }
 
         else
             return ITEM_USAGE_VENDOR;
