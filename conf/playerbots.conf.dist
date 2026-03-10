@@ -2204,7 +2204,14 @@ AiPlayerbot.MaxRandomBotsPriceChangeInterval = 172800
 
 # Auction house pricing for items marked as ITEM_USAGE_AH
 # RandomStackSize = 1 posts a random partial stack when possible, 0 posts the full stack
+# Built-in AH exclusions: gray items, projectile ammo, spell reagents,
+# and white non-material items. White materials can still be posted.
 AiPlayerbot.AuctionHouseRandomStackSize = 1
+
+# Comma-separated item IDs that bots must never post to the auction house.
+# Useful for class essentials (e.g. ammo) you want bots to keep.
+# Example: 2512,2515
+AiPlayerbot.AuctionHouseExcludedItemIds =
 
 # Minimum opening bid when bots post to the auction house
 AiPlayerbot.AuctionHouseMinBidPrice = 100

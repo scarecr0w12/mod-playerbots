@@ -29,14 +29,23 @@ bool IsAuctionHouseMaterial(ItemTemplate const* proto)
     switch (proto->Class)
     {
         case ITEM_CLASS_TRADE_GOODS:
-        case ITEM_CLASS_REAGENT:
         case ITEM_CLASS_GEM:
-        case ITEM_CLASS_MISC:
             return true;
+        case ITEM_CLASS_MISC:
+            return proto->SubClass != ITEM_SUBCLASS_REAGENT;
         default:
             return false;
     }
 }
+bool IsSpellReagentItem(ItemTemplate const* proto)
+{
+    if (!proto)
+        return false;
+
+    return proto->Class == ITEM_CLASS_REAGENT ||
+           (proto->Class == ITEM_CLASS_MISC && proto->SubClass == ITEM_SUBCLASS_REAGENT);
+}
+
 }
 
 ItemUsage ItemUsageValue::Calculate()
@@ -184,6 +193,21 @@ ItemUsage ItemUsageValue::Calculate()
     // Need to add something like free bagspace or item value.
     if (proto->SellPrice > 0)
     {
+        if (proto->Quality == ITEM_QUALITY_POOR)
+            return ITEM_USAGE_VENDOR;
+
+        if (sPlayerbotAIConfig.IsInAuctionHouseExcludedItemList(itemId))
+            return ITEM_USAGE_KEEP;
+
+        if (proto->Class == ITEM_CLASS_PROJECTILE)
+            return ITEM_USAGE_VENDOR;
+
+        if (IsSpellReagentItem(proto))
+            return IsItemNeededForUsefullSpell(proto, false) ? ITEM_USAGE_KEEP : ITEM_USAGE_VENDOR;
+
+        if (proto->Quality == ITEM_QUALITY_NORMAL && !IsAuctionHouseMaterial(proto))
+            return ITEM_USAGE_VENDOR;
+
         if (proto->Quality >= ITEM_QUALITY_NORMAL && !isSoulbound)
         {
             uint32 itemCount = bot->GetItemCount(itemId, true);
@@ -193,8 +217,7 @@ ItemUsage ItemUsageValue::Calculate()
             return ITEM_USAGE_AH;
         }
 
-        else
-            return ITEM_USAGE_VENDOR;
+        return ITEM_USAGE_VENDOR;
     }
 
     return ITEM_USAGE_NONE;
@@ -445,7 +468,7 @@ ItemUsage ItemUsageValue::QueryItemUsageForEquip(ItemTemplate const* itemProto, 
 
 ItemUsage ItemUsageValue::QueryItemUsageForAmmo(ItemTemplate const* proto)
 {
-    if (bot->getClass() != CLASS_HUNTER || bot->getClass() != CLASS_ROGUE || bot->getClass() != CLASS_WARRIOR)
+    if (bot->getClass() != CLASS_HUNTER && bot->getClass() != CLASS_ROGUE && bot->getClass() != CLASS_WARRIOR)
         return ITEM_USAGE_NONE;
 
     Item* rangedWeapon = bot->GetItemByPos(INVENTORY_SLOT_BAG_0, EQUIPMENT_SLOT_RANGED);

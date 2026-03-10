@@ -27,10 +27,10 @@ bool IsAuctionHouseMaterial(ItemTemplate const* proto)
     switch (proto->Class)
     {
         case ITEM_CLASS_TRADE_GOODS:
-        case ITEM_CLASS_REAGENT:
         case ITEM_CLASS_GEM:
-        case ITEM_CLASS_MISC:
             return true;
+        case ITEM_CLASS_MISC:
+            return proto->SubClass != ITEM_SUBCLASS_REAGENT;
         default:
             return false;
     }
@@ -162,6 +162,9 @@ public:
 
     bool Visit(Item* item) override
     {
+        if (sPlayerbotAIConfig.IsInAuctionHouseExcludedItemList(item->GetEntry()))
+            return true;
+
         ItemUsage usage = context->GetValue<ItemUsage>("item usage", item->GetEntry())->Get();
         if (usage != ITEM_USAGE_AH)
             return true;
@@ -217,8 +220,20 @@ bool SellAction::SellToAuctionHouse(Item* item)
     if (!item)
         return false;
 
+    if (sPlayerbotAIConfig.IsInAuctionHouseExcludedItemList(item->GetEntry()))
+        return false;
+
     ItemTemplate const* proto = item->GetTemplate();
     if (!proto || !item->CanBeTraded())
+        return false;
+
+    if (proto->Quality == ITEM_QUALITY_POOR)
+        return false;
+
+    if (proto->Class == ITEM_CLASS_PROJECTILE)
+        return false;
+
+    if (proto->Quality == ITEM_QUALITY_NORMAL && !IsAuctionHouseMaterial(proto))
         return false;
 
     if (proto->Bonding == BIND_WHEN_PICKED_UP || proto->Bonding == BIND_QUEST_ITEM)
