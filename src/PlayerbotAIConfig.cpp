@@ -223,6 +223,9 @@ bool PlayerbotAIConfig::Initialize()
     auctionHouseUndercutMaxPct = sConfigMgr->GetOption<uint32>("AiPlayerbot.AuctionHouseUndercutMaxPct", 200);
     auctionHouseBuyoutMinPct = sConfigMgr->GetOption<uint32>("AiPlayerbot.AuctionHouseBuyoutMinPct", 110);
     auctionHouseBuyoutMaxPct = sConfigMgr->GetOption<uint32>("AiPlayerbot.AuctionHouseBuyoutMaxPct", 133);
+    LoadSet<std::set<uint32>>(
+        sConfigMgr->GetOption<std::string>("AiPlayerbot.AuctionHouseExcludedItemIds", ""),
+        auctionHouseExcludedItemIds);
     randomBotJoinLfg = sConfigMgr->GetOption<bool>("AiPlayerbot.RandomBotJoinLfg", true);
 
     restrictHealerDPS = sConfigMgr->GetOption<bool>("AiPlayerbot.HealerDPSMapRestriction", false);
@@ -714,6 +717,11 @@ bool PlayerbotAIConfig::IsInRandomAccountList(uint32 id)
 bool PlayerbotAIConfig::IsInRandomQuestItemList(uint32 id)
 {
     return find(randomBotQuestItems.begin(), randomBotQuestItems.end(), id) != randomBotQuestItems.end();
+}
+
+bool PlayerbotAIConfig::IsInAuctionHouseExcludedItemList(uint32 id) const
+{
+    return auctionHouseExcludedItemIds.find(id) != auctionHouseExcludedItemIds.end();
 }
 
 bool PlayerbotAIConfig::IsPvpProhibited(uint32 zoneId, uint32 areaId)

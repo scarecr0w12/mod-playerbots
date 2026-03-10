@@ -74,6 +74,7 @@ public:
     bool Initialize();
     bool IsInRandomAccountList(uint32 id);
     bool IsInRandomQuestItemList(uint32 id);
+    bool IsInAuctionHouseExcludedItemList(uint32 id) const;
     bool IsPvpProhibited(uint32 zoneId, uint32 areaId);
     bool IsInPvpProhibitedZone(uint32 id);
     bool IsInPvpProhibitedArea(uint32 id);
@@ -147,6 +148,7 @@ public:
     uint32 auctionHouseUndercutMaxPct;
     uint32 auctionHouseBuyoutMinPct;
     uint32 auctionHouseBuyoutMaxPct;
+    std::set<uint32> auctionHouseExcludedItemIds;
     uint32 disabledWithoutRealPlayerLoginDelay, disabledWithoutRealPlayerLogoutDelay;
     bool randomBotJoinLfg;
 
