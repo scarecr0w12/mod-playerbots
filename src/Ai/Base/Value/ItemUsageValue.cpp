@@ -12,6 +12,7 @@
 #include "LootObjectStack.h"
 #include "PlayerbotAIConfig.h"
 #include "PlayerbotFactory.h"
+#include "PlayerbotAuctionHousePolicy.h"
 #include "Playerbots.h"
 #include "RandomItemMgr.h"
 #include "ServerFacade.h"
@@ -197,6 +198,9 @@ ItemUsage ItemUsageValue::Calculate()
             return ITEM_USAGE_VENDOR;
 
         if (sPlayerbotAIConfig.IsInAuctionHouseExcludedItemList(itemId))
+            return ITEM_USAGE_KEEP;
+
+        if (!sPlayerbotAuctionHousePolicyMgr.IsSellable(itemId))
             return ITEM_USAGE_KEEP;
 
         if (proto->Class == ITEM_CLASS_PROJECTILE)

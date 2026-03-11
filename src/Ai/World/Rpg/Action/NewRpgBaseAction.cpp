@@ -609,6 +609,30 @@ ObjectGuid NewRpgBaseAction::ChooseNpcOrGameObjectToInteract(bool questgiverOnly
     if (possibleTargets.empty() && possibleGameObjects.empty())
         return ObjectGuid();
 
+    uint32 ahItemCount = AI_VALUE2(uint32, "item count", "usage " + std::to_string(ITEM_USAGE_AH));
+    if (!questgiverOnly && ahItemCount > 0)
+    {
+        WorldObject* nearestAuctioneer = nullptr;
+        for (ObjectGuid& guid : possibleTargets)
+        {
+            Creature* creature = ObjectAccessor::GetCreature(*bot, guid);
+            if (!creature || !creature->IsInWorld())
+                continue;
+
+            if (!creature->HasNpcFlag(UNIT_NPC_FLAG_AUCTIONEER))
+                continue;
+
+            if (distanceLimit && bot->GetDistance(creature) > distanceLimit)
+                continue;
+
+            if (!nearestAuctioneer || bot->GetExactDist(nearestAuctioneer) > bot->GetExactDist(creature))
+                nearestAuctioneer = creature;
+        }
+
+        if (nearestAuctioneer)
+            return nearestAuctioneer->GetGUID();
+    }
+
     WorldObject* nearestObject = nullptr;
     for (ObjectGuid& guid : possibleTargets)
     {
@@ -652,30 +676,6 @@ ObjectGuid NewRpgBaseAction::ChooseNpcOrGameObjectToInteract(bool questgiverOnly
     // No questgiver to accept or reward
     if (questgiverOnly)
         return ObjectGuid();
-
-    uint32 ahItemCount = AI_VALUE2(uint32, "item count", "usage " + std::to_string(ITEM_USAGE_AH));
-    if (ahItemCount > 0)
-    {
-        WorldObject* nearestAuctioneer = nullptr;
-        for (ObjectGuid& guid : possibleTargets)
-        {
-            Creature* creature = ObjectAccessor::GetCreature(*bot, guid);
-            if (!creature || !creature->IsInWorld())
-                continue;
-
-            if (!creature->HasNpcFlag(UNIT_NPC_FLAG_AUCTIONEER))
-                continue;
-
-            if (distanceLimit && bot->GetDistance(creature) > distanceLimit)
-                continue;
-
-            if (!nearestAuctioneer || bot->GetExactDist(nearestAuctioneer) > bot->GetExactDist(creature))
-                nearestAuctioneer = creature;
-        }
-
-        if (nearestAuctioneer)
-            return nearestAuctioneer->GetGUID();
-    }
 
     if (possibleTargets.empty())
         return ObjectGuid();
@@ -1217,7 +1217,7 @@ bool NewRpgBaseAction::CheckRpgStatusAvailable(NewRpgStatus status)
                     return true;
             }
 
-            return possibleTargets.size() >= 3;
+            return false;
         }
         case RPG_DO_QUEST:
         {

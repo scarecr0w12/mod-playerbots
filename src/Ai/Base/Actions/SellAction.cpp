@@ -11,6 +11,7 @@
 #include "ItemVisitors.h"
 #include "Log.h"
 #include "Playerbots.h"
+#include "PlayerbotAuctionHousePolicy.h"
 #include "ItemPackets.h"
 
 #include <algorithm>
@@ -53,7 +54,7 @@ uint32 RoundAuctionPrice(double price)
     return uint32(price / 10000.0) * 10000;
 }
 
-uint32 GetAuctionStackCount(Item* item)
+uint32 GetAuctionStackCount(Item* item, PlayerbotAuctionItemPolicy const& policy)
 {
     if (!item)
         return 0;
@@ -62,10 +63,13 @@ uint32 GetAuctionStackCount(Item* item)
     if (!itemCount)
         return 0;
 
-    if (!sPlayerbotAIConfig.auctionHouseRandomStackSize)
-        return itemCount;
-
     uint32 maxStackCount = std::min<uint32>(itemCount, item->GetMaxStackCount());
+    if (policy.maxStackCount)
+        maxStackCount = std::min<uint32>(maxStackCount, std::max<uint32>(1, policy.maxStackCount));
+
+    if (!sPlayerbotAIConfig.auctionHouseRandomStackSize)
+        return maxStackCount ? maxStackCount : itemCount;
+
     if (maxStackCount <= 1)
         return 1;
 
@@ -73,24 +77,45 @@ uint32 GetAuctionStackCount(Item* item)
     if (IsAuctionHouseMaterial(item->GetTemplate()) && itemCount >= AuctionHouseMaterialMinCount)
         minStackCount = std::min<uint32>(AuctionHouseMaterialMinCount, maxStackCount);
 
+    if (policy.minStackCount)
+        minStackCount = std::min<uint32>(std::max<uint32>(1, policy.minStackCount), maxStackCount);
+
     if (maxStackCount <= minStackCount)
         return maxStackCount;
 
     return urand(minStackCount, maxStackCount);
 }
 
-uint32 GetAuctionUnitPrice(Player* bot, ItemTemplate const* proto)
+uint32 GetAuctionUnitPrice(Player* bot, ItemTemplate const* proto, AuctionHouseObject* auctionHouse,
+    PlayerbotAuctionItemPolicy const& policy, PlayerbotAuctionMarketSnapshot* marketSnapshot = nullptr)
 {
     if (!bot || !proto)
         return 0;
 
+    uint32 unitPrice = 0;
+
     if (proto->BuyPrice)
-        return RoundAuctionPrice(proto->BuyPrice * sRandomPlayerbotMgr.GetBuyMultiplier(bot));
+        unitPrice = RoundAuctionPrice(proto->BuyPrice * sRandomPlayerbotMgr.GetBuyMultiplier(bot));
+    else if (proto->SellPrice)
+        unitPrice = RoundAuctionPrice(proto->SellPrice * std::max(1.0, sRandomPlayerbotMgr.GetSellMultiplier(bot)));
+    else
+        unitPrice = 1;
 
-    if (proto->SellPrice)
-        return RoundAuctionPrice(proto->SellPrice * std::max(1.0, sRandomPlayerbotMgr.GetSellMultiplier(bot)));
+    PlayerbotAuctionMarketSnapshot snapshot =
+        GetPlayerbotAuctionMarketSnapshot(auctionHouse, proto->ItemId, bot->GetGUID());
+    if (marketSnapshot)
+        *marketSnapshot = snapshot;
 
-    return 1;
+    uint32 marketUnitPrice = GetPlayerbotAuctionReferenceUnitPrice(snapshot);
+    if (!marketUnitPrice)
+        return std::max<uint32>(1, unitPrice);
+
+    uint32 marketWeight = std::min<uint32>(100, policy.marketPriceWeightPct);
+    if (!marketWeight)
+        return std::max<uint32>(1, unitPrice);
+
+    return std::max<uint32>(1,
+        RoundAuctionPrice((double(unitPrice) * (100 - marketWeight) + double(marketUnitPrice) * marketWeight) / 100.0));
 }
 
 bool HasNearbyAuctioneer(Player* bot, GuidVector const& npcs, ObjectGuid& auctioneerGuid)
@@ -165,6 +190,9 @@ public:
         if (sPlayerbotAIConfig.IsInAuctionHouseExcludedItemList(item->GetEntry()))
             return true;
 
+        if (!sPlayerbotAuctionHousePolicyMgr.IsSellable(item->GetEntry()))
+            return true;
+
         ItemUsage usage = context->GetValue<ItemUsage>("item usage", item->GetEntry())->Get();
         if (usage != ITEM_USAGE_AH)
             return true;
@@ -224,6 +252,13 @@ bool SellAction::SellToAuctionHouse(Item* item)
     if (sPlayerbotAIConfig.IsInAuctionHouseExcludedItemList(item->GetEntry()))
         return false;
 
+    PlayerbotAuctionItemPolicy policy = sPlayerbotAuctionHousePolicyMgr.GetPolicy(item->GetEntry());
+    if (!policy.sellable)
+        return false;
+
+    if (!policy.chanceToSell || urand(1, 100) > policy.chanceToSell)
+        return false;
+
     ItemTemplate const* proto = item->GetTemplate();
     if (!proto || !item->CanBeTraded())
         return false;
@@ -250,26 +285,33 @@ bool SellAction::SellToAuctionHouse(Item* item)
         return false;
     }
 
-    uint32 itemCount = GetAuctionStackCount(item);
+    Creature* auctioneer = bot->GetNPCIfCanInteractWith(auctioneerGuid, UNIT_NPC_FLAG_AUCTIONEER);
+    if (!auctioneer)
+        return false;
+
+    AuctionHouseObject* auctionHouse = sAuctionMgr->GetAuctionsMap(auctioneer->GetFaction());
+
+    uint32 itemCount = GetAuctionStackCount(item, policy);
     if (!itemCount)
         return false;
 
-    uint32 unitPrice = GetAuctionUnitPrice(bot, proto);
+    PlayerbotAuctionMarketSnapshot marketSnapshot;
+    uint32 unitPrice = GetAuctionUnitPrice(bot, proto, auctionHouse, policy, &marketSnapshot);
     if (!unitPrice)
         return false;
 
-    if (sPlayerbotAIConfig.auctionHouseUndercutChance &&
-        urand(1, 100) <= sPlayerbotAIConfig.auctionHouseUndercutChance)
+    if (policy.undercutChance && urand(1, 100) <= policy.undercutChance)
     {
         uint32 minPct = std::max<uint32>(100, sPlayerbotAIConfig.auctionHouseUndercutMinPct);
         uint32 maxPct = std::max<uint32>(minPct, sPlayerbotAIConfig.auctionHouseUndercutMaxPct);
-        unitPrice = std::max<uint32>(1, unitPrice * 100 / urand(minPct, maxPct));
+        uint32 anchorUnitPrice = marketSnapshot.HasData() ? marketSnapshot.minUnitBuyout : unitPrice;
+        unitPrice = std::max<uint32>(1, RoundAuctionPrice(double(anchorUnitPrice) * 100.0 / urand(minPct, maxPct)));
     }
 
     uint32 startBid = std::max<uint32>(sPlayerbotAIConfig.auctionHouseMinBidPrice,
-                                        RoundAuctionPrice(double(itemCount) * unitPrice));
-    uint32 minBuyoutPct = std::max<uint32>(100, sPlayerbotAIConfig.auctionHouseBuyoutMinPct);
-    uint32 maxBuyoutPct = std::max<uint32>(minBuyoutPct, sPlayerbotAIConfig.auctionHouseBuyoutMaxPct);
+        RoundAuctionPrice(double(itemCount) * unitPrice * std::max<uint32>(1, policy.minBidPct) / 100.0));
+    uint32 minBuyoutPct = std::max<uint32>(100, policy.buyoutMinPct);
+    uint32 maxBuyoutPct = std::max<uint32>(minBuyoutPct, policy.buyoutMaxPct);
     uint32 buyout = RoundAuctionPrice(double(startBid) * urand(minBuyoutPct, maxBuyoutPct) / 100.0);
     if (buyout <= startBid)
         buyout = startBid + 1;
