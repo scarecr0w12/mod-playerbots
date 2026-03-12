@@ -3,10 +3,12 @@
  * and/or modify it under version 3 of the License, or (at your option), any later version.
  */
 
+#include "AuctionHouseBotHelper.h"
 #include "ItemUsageValue.h"
 
 #include "AiFactory.h"
 #include "ChatHelper.h"
+#include "Db/PlayerbotSpellRepository.h"
 #include "GuildTaskMgr.h"
 #include "Item.h"
 #include "LootObjectStack.h"
@@ -22,22 +24,6 @@ namespace
 {
 constexpr uint32 AuctionHouseMaterialMinCount = 5;
 
-bool IsAuctionHouseMaterial(ItemTemplate const* proto)
-{
-    if (!proto)
-        return false;
-
-    switch (proto->Class)
-    {
-        case ITEM_CLASS_TRADE_GOODS:
-        case ITEM_CLASS_GEM:
-            return true;
-        case ITEM_CLASS_MISC:
-            return proto->SubClass != ITEM_SUBCLASS_REAGENT;
-        default:
-            return false;
-    }
-}
 bool IsSpellReagentItem(ItemTemplate const* proto)
 {
     if (!proto)
@@ -202,6 +188,9 @@ ItemUsage ItemUsageValue::Calculate()
 
         if (!sPlayerbotAuctionHousePolicyMgr.IsSellable(itemId))
             return ITEM_USAGE_KEEP;
+
+        if (PlayerbotSpellRepository::Instance().IsItemBuyable(itemId))
+            return ITEM_USAGE_VENDOR;
 
         if (proto->Class == ITEM_CLASS_PROJECTILE)
             return ITEM_USAGE_VENDOR;

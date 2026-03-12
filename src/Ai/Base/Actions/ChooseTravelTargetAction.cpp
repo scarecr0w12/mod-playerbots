@@ -5,6 +5,7 @@
 
 #include "ChooseTravelTargetAction.h"
 
+#include "AuctionHouseBotHelper.h"
 #include "ChatHelper.h"
 #include "ItemUsageValue.h"
 #include "LootObjectStack.h"
@@ -42,6 +43,9 @@ bool ChooseTravelTargetAction::Execute(Event /*event*/)
 // Eventually we want to rewrite this to be more intelligent.
 void ChooseTravelTargetAction::getNewTarget(TravelTarget* newTarget, TravelTarget* oldTarget)
 {
+    uint32 ahItemCount = AI_VALUE2(uint32, "item count", "usage " + std::to_string(ITEM_USAGE_AH));
+    uint32 preferredAhItemCount = CountPreferredAuctionHouseItems(bot, context);
+
     // Join groups members
     bool foundTarget = foundTarget = SetGroupTarget(newTarget);
 
@@ -52,7 +56,7 @@ void ChooseTravelTargetAction::getNewTarget(TravelTarget* newTarget, TravelTarge
              AI_VALUE2(bool, "group or", "should repair,can repair,following party,near leader")
             )
         {
-            if (AI_VALUE2(uint32, "item count", "usage " + std::to_string(ITEM_USAGE_AH)) > 0)
+            if (preferredAhItemCount > 0 || ahItemCount > 0)
                 foundTarget = SetNpcFlagTarget(newTarget, { UNIT_NPC_FLAG_AUCTIONEER });
 
             if (!foundTarget)
@@ -63,9 +67,9 @@ void ChooseTravelTargetAction::getNewTarget(TravelTarget* newTarget, TravelTarge
     // Visit auctioneers as part of normal RPG behavior
     if (!foundTarget && bot->GetLevel() > 5)
     {
-        bool hasAuctionItems =
-            AI_VALUE2(uint32, "item count", "usage " + std::to_string(ITEM_USAGE_AH)) > 0;
-        if (hasAuctionItems || urand(1, 100) <= 30)
+        if (preferredAhItemCount > 0)
+            foundTarget = SetNpcFlagTarget(newTarget, { UNIT_NPC_FLAG_AUCTIONEER });
+        else if (ahItemCount > 0 ? urand(1, 100) <= 70 : urand(1, 100) <= 30)
             foundTarget = SetNpcFlagTarget(newTarget, { UNIT_NPC_FLAG_AUCTIONEER });
     }
 

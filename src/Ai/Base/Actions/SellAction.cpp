@@ -5,7 +5,9 @@
 
 #include "SellAction.h"
 
+#include "AuctionHouseBotHelper.h"
 #include "AuctionHouseMgr.h"
+#include "Db/PlayerbotSpellRepository.h"
 #include "Event.h"
 #include "ItemUsageValue.h"
 #include "ItemVisitors.h"
@@ -19,23 +21,6 @@
 namespace
 {
 constexpr uint32 AuctionHouseMaterialMinCount = 5;
-
-bool IsAuctionHouseMaterial(ItemTemplate const* proto)
-{
-    if (!proto)
-        return false;
-
-    switch (proto->Class)
-    {
-        case ITEM_CLASS_TRADE_GOODS:
-        case ITEM_CLASS_GEM:
-            return true;
-        case ITEM_CLASS_MISC:
-            return proto->SubClass != ITEM_SUBCLASS_REAGENT;
-        default:
-            return false;
-    }
-}
 
 uint32 RoundAuctionPrice(double price)
 {
@@ -250,6 +235,9 @@ bool SellAction::SellToAuctionHouse(Item* item)
         return false;
 
     if (sPlayerbotAIConfig.IsInAuctionHouseExcludedItemList(item->GetEntry()))
+        return false;
+
+    if (PlayerbotSpellRepository::Instance().IsItemBuyable(item->GetEntry()))
         return false;
 
     PlayerbotAuctionItemPolicy policy = sPlayerbotAuctionHousePolicyMgr.GetPolicy(item->GetEntry());
