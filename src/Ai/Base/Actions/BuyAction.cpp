@@ -300,43 +300,47 @@ bool BuyAction::BuyAuction(ObjectGuid auctioneerGuid, AuctionEntry* auction)
     if (!auction || !auction->buyout)
         return false;
 
+    uint32 const auctionId = auction->Id;
+    uint32 const buyout = auction->buyout;
+    uint32 const itemTemplateId = auction->item_template;
+
     Creature* auctioneer = bot->GetNPCIfCanInteractWith(auctioneerGuid, UNIT_NPC_FLAG_AUCTIONEER);
     if (!auctioneer)
         return false;
 
     AuctionHouseObject* auctionHouse = sAuctionMgr->GetAuctionsMap(auctioneer->GetFaction());
-    if (!auctionHouse || !auctionHouse->GetAuction(auction->Id))
+    if (!auctionHouse || !auctionHouse->GetAuction(auctionId))
         return false;
 
     uint32 botMoney = bot->GetMoney();
 
     WorldPacket packet(CMSG_AUCTION_PLACE_BID);
     packet << auctioneerGuid;
-    packet << auction->Id;
-    packet << auction->buyout;
+    packet << auctionId;
+    packet << buyout;
 
     bot->GetSession()->HandleAuctionPlaceBid(packet);
 
     if (botAI->HasCheat(BotCheatMask::gold))
         bot->SetMoney(botMoney);
 
-    if (auctionHouse->GetAuction(auction->Id))
+    if (auctionHouse->GetAuction(auctionId))
     {
-        LOG_INFO("playerbots", "{}: failed to buy auction {} via {} (buyout={})",
-            bot->GetName(), auction->Id, auctioneerGuid.ToString(), auction->buyout);
+        LOG_DEBUG("playerbots", "{}: failed to buy auction {} via {} (buyout={})",
+            bot->GetName(), auctionId, auctioneerGuid.ToString(), buyout);
         return false;
     }
 
-    ItemTemplate const* boughtItemProto = sObjectMgr->GetItemTemplate(auction->item_template);
+    ItemTemplate const* boughtItemProto = sObjectMgr->GetItemTemplate(itemTemplateId);
 
-    LOG_INFO("playerbots", "{}: bought {} from auction house via {} for {}",
-        bot->GetName(), boughtItemProto ? boughtItemProto->Name1 : std::to_string(auction->item_template),
-        auctioneerGuid.ToString(), auction->buyout);
+    LOG_DEBUG("playerbots", "{}: bought {} from auction house via {} for {}",
+        bot->GetName(), boughtItemProto ? boughtItemProto->Name1 : std::to_string(itemTemplateId),
+        auctioneerGuid.ToString(), buyout);
 
     std::ostringstream out;
     out << "Buying from auction house "
-        << (boughtItemProto ? ChatHelper::FormatItem(boughtItemProto) : std::to_string(auction->item_template))
-        << " for " << auction->buyout;
+        << (boughtItemProto ? ChatHelper::FormatItem(boughtItemProto) : std::to_string(itemTemplateId))
+        << " for " << buyout;
     botAI->TellMaster(out.str());
 
     return true;

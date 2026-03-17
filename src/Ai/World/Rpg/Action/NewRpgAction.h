@@ -52,7 +52,6 @@ protected:
     const int32 statusRestDuration = 30 * 1000;
     const int32 statusDoQuestDuration = 30 * 60 * 1000;
     const int32 statusFarmingDuration = 12 * 60 * 1000;
-    const uint32 farmingAuctionThreshold = 8;
 };
 
 class NewRpgGoGrindAction : public NewRpgBaseAction

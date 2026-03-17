@@ -77,6 +77,8 @@ uint32 GetAuctionUnitPrice(Player* bot, ItemTemplate const* proto, AuctionHouseO
     if (!bot || !proto)
         return 0;
 
+    uint32 marketWeight = std::min<uint32>(100, policy.marketPriceWeightPct);
+
     uint32 unitPrice = 0;
 
     if (proto->BuyPrice)
@@ -86,6 +88,9 @@ uint32 GetAuctionUnitPrice(Player* bot, ItemTemplate const* proto, AuctionHouseO
     else
         unitPrice = 1;
 
+    if (!marketWeight)
+        return std::max<uint32>(1, unitPrice);
+
     PlayerbotAuctionMarketSnapshot snapshot =
         GetPlayerbotAuctionMarketSnapshot(auctionHouse, proto->ItemId, bot->GetGUID());
     if (marketSnapshot)
@@ -93,10 +98,6 @@ uint32 GetAuctionUnitPrice(Player* bot, ItemTemplate const* proto, AuctionHouseO
 
     uint32 marketUnitPrice = GetPlayerbotAuctionReferenceUnitPrice(snapshot);
     if (!marketUnitPrice)
-        return std::max<uint32>(1, unitPrice);
-
-    uint32 marketWeight = std::min<uint32>(100, policy.marketPriceWeightPct);
-    if (!marketWeight)
         return std::max<uint32>(1, unitPrice);
 
     return std::max<uint32>(1,
@@ -335,13 +336,13 @@ bool SellAction::SellToAuctionHouse(Item* item)
 
     if (bot->GetItemCount(proto->ItemId, true) >= oldCount)
     {
-        LOG_INFO("playerbots",
+        LOG_DEBUG("playerbots",
             "{}: failed to post {} x{} to auction house via {} (bid={}, buyout={})",
             bot->GetName(), proto->Name1, itemCount, auctioneerGuid.ToString(), startBid, buyout);
         return false;
     }
 
-    LOG_INFO("playerbots",
+    LOG_DEBUG("playerbots",
         "{}: posted {} x{} to auction house via {} (bid={}, buyout={})",
         bot->GetName(), proto->Name1, itemCount, auctioneerGuid.ToString(), startBid, buyout);
 

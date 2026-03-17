@@ -62,8 +62,6 @@ public:
             return;
         }
 
-        SyncSellableItemsLocked();
-
         QueryResult result = PlayerbotsDatabase.Query(
             "SELECT `item_id`, `sellable`, `chance_to_sell`, `min_stack_count`, `max_stack_count`, "
             "`min_bid_pct`, `buyout_min_pct`, `buyout_max_pct`, `undercut_chance`, `market_price_weight_pct` "
@@ -136,21 +134,6 @@ private:
         return result->Fetch()[0].Get<uint32>() != 0;
     }
 
-    void SyncSellableItemsLocked() const
-    {
-        std::string const worldDbName = WorldDatabase.GetConnectionInfo()->database;
-        PlayerbotsDatabase.Execute(
-            "INSERT IGNORE INTO `playerbots_auction_item_policy` "
-            "(`item_id`, `sellable`, `chance_to_sell`, `min_stack_count`, `max_stack_count`, "
-            "`min_bid_pct`, `buyout_min_pct`, `buyout_max_pct`, `undercut_chance`, `market_price_weight_pct`) "
-            "SELECT `entry`, 1, 100, 0, 0, 100, {}, {}, {}, 75 FROM `" + worldDbName + "`.`item_template` "
-            "WHERE `SellPrice` > 0",
-            std::max<uint32>(100, sPlayerbotAIConfig.auctionHouseBuyoutMinPct),
-            std::max<uint32>(std::max<uint32>(100, sPlayerbotAIConfig.auctionHouseBuyoutMinPct),
-                sPlayerbotAIConfig.auctionHouseBuyoutMaxPct),
-            std::min<uint32>(100, sPlayerbotAIConfig.auctionHouseUndercutChance));
-    }
-
 private:
     mutable std::mutex _lock;
     std::unordered_map<uint32, PlayerbotAuctionItemPolicy> _policies;
@@ -158,7 +141,7 @@ private:
 };
 
 inline PlayerbotAuctionMarketSnapshot GetPlayerbotAuctionMarketSnapshot(
-    AuctionHouseObject* auctionHouse, uint32 itemId, ObjectGuid owner = ObjectGuid())
+    AuctionHouseObject* auctionHouse, uint32 itemId, ObjectGuid owner = ObjectGuid(), uint32 maxSamples = 64)
 {
     PlayerbotAuctionMarketSnapshot snapshot;
     if (!auctionHouse || !itemId)
@@ -180,6 +163,9 @@ inline PlayerbotAuctionMarketSnapshot GetPlayerbotAuctionMarketSnapshot(
 
         totalUnitBuyout += unitBuyout;
         ++snapshot.sampleCount;
+
+        if (maxSamples && snapshot.sampleCount >= maxSamples)
+            break;
     }
 
     if (snapshot.sampleCount)

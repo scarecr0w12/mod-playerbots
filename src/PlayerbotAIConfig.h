@@ -150,6 +150,7 @@ public:
     uint32 auctionHouseUndercutMaxPct;
     uint32 auctionHouseBuyoutMinPct;
     uint32 auctionHouseBuyoutMaxPct;
+    uint32 rpgFarmingAuctionThreshold;
     std::set<uint32> auctionHouseExcludedItemIds;
     uint32 disabledWithoutRealPlayerLoginDelay, disabledWithoutRealPlayerLogoutDelay;
     bool randomBotJoinLfg;
