@@ -4,6 +4,7 @@
 #include "ObjectAccessor.h"
 #include "ObjectGuid.h"
 #include "Playerbots.h"
+#include "Random.h"
 #include "RaidBossHelpers.h"
 
 using namespace MagtheridonHelpers;
@@ -432,8 +433,8 @@ bool MagtheridonSpreadRangedAction::Execute(Event /*event*/)
         uint8 botIndex = (it != members.end()) ? std::distance(members.begin(), it) : 0;
         uint8 count = members.size();
 
-        float angle = 2 * M_PI * botIndex / count;
-        float radius = static_cast<float>(rand()) / RAND_MAX * maxSpreadRadius;
+        float angle = 2.0f * static_cast<float>(M_PI) * botIndex / count;
+        float radius = frand(0.0f, maxSpreadRadius);
         float targetX = centerX + radius * cos(angle);
         float targetY = centerY + radius * sin(angle);
 
@@ -466,8 +467,8 @@ bool MagtheridonSpreadRangedAction::Execute(Event /*event*/)
 
     if (distToCenter > maxSpreadRadius + radiusBuffer)
     {
-        float angle = static_cast<float>(rand()) / RAND_MAX * 2.0f * M_PI;
-        float radius = static_cast<float>(rand()) / RAND_MAX * maxSpreadRadius;
+        float angle = frand(0.0f, 2.0f * static_cast<float>(M_PI));
+        float radius = frand(0.0f, maxSpreadRadius);
         float targetX = centerX + radius * cos(angle);
         float targetY = centerY + radius * sin(angle);
 
@@ -575,7 +576,7 @@ bool MagtheridonUseManticronCubeAction::HandleWaitingPhase(const CubeInfo& cubeI
             }
         }
 
-        float angle = static_cast<float>(rand()) / RAND_MAX * 2.0f * M_PI;
+        float angle = frand(0.0f, 2.0f * static_cast<float>(M_PI));
         float fallbackX = cubeInfo.x + cos(angle) * safeWaitDistance;
         float fallbackY = cubeInfo.y + sin(angle) * safeWaitDistance;
         float fallbackZ = bot->GetPositionZ();
