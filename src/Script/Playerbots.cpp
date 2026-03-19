@@ -17,7 +17,6 @@
 
 #include "Playerbots.h"
 
-#include "BattlefieldScript.h"
 #include "Channel.h"
 #include "Config.h"
 #include "DatabaseEnv.h"
@@ -375,7 +374,8 @@ public:
         LOG_INFO("server.loading", ">> Loaded playerbots config in {} ms", GetMSTimeDiffToNow(oldMSTime));
         LOG_INFO("server.loading", " ");
 
-        sPlayerbotAuctionHousePolicyMgr.Initialize();
+        if (sPlayerbotAIConfig.enableAuctionHouseBotting)
+            sPlayerbotAuctionHousePolicyMgr.Initialize();
 
         PlayerbotSpellRepository::Instance().Initialize();
 
@@ -522,20 +522,12 @@ public:
     void OnBattlegroundEnd(Battleground* bg, TeamId /*winnerTeam*/) override { bgStrategies.erase(bg->GetInstanceID()); }
 };
 
-// Workaround for missing InitEnabledHooksIfNeeded for new BattlefieldScript in ScriptMgr
-class PlayerbotsBattlefieldScript : public BattlefieldScript
-{
-public:
-    PlayerbotsBattlefieldScript() : BattlefieldScript("PlayerbotsBattlefieldScript") { }
-};
-
 void AddPlayerbotsSecureLoginScripts();
 
 void AddSC_TempestKeepBotScripts();
 
 void AddPlayerbotsScripts()
 {
-    new PlayerbotsBattlefieldScript();
     new PlayerbotsDatabaseScript();
     new PlayerbotsPlayerScript();
     new PlayerbotsMiscScript();

@@ -143,6 +143,7 @@ public:
     uint32 minRandomBotPvpTime, maxRandomBotPvpTime;
     uint32 randomBotsPerInterval;
     uint32 minRandomBotsPriceChangeInterval, maxRandomBotsPriceChangeInterval;
+    bool enableAuctionHouseBotting;
     bool auctionHouseRandomStackSize;
     uint32 auctionHouseMinBidPrice;
     uint32 auctionHouseUndercutChance;

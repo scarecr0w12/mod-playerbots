@@ -22,16 +22,16 @@
 
 namespace
 {
-constexpr uint32 AuctionHouseMaterialMinCount = 5;
+    constexpr uint32 AuctionHouseMaterialMinCount = 5;
 
-bool IsSpellReagentItem(ItemTemplate const* proto)
-{
-    if (!proto)
-        return false;
+    bool IsSpellReagentItem(ItemTemplate const* proto)
+    {
+        if (!proto)
+            return false;
 
-    return proto->Class == ITEM_CLASS_REAGENT ||
-           (proto->Class == ITEM_CLASS_MISC && proto->SubClass == ITEM_SUBCLASS_REAGENT);
-}
+        return proto->Class == ITEM_CLASS_REAGENT ||
+               (proto->Class == ITEM_CLASS_MISC && proto->SubClass == ITEM_SUBCLASS_REAGENT);
+    }
 
 }
 
@@ -183,20 +183,23 @@ ItemUsage ItemUsageValue::Calculate()
         if (proto->Quality == ITEM_QUALITY_POOR)
             return ITEM_USAGE_VENDOR;
 
+        if (proto->Class == ITEM_CLASS_PROJECTILE)
+            return ITEM_USAGE_VENDOR;
+
+        if (PlayerbotSpellRepository::Instance().IsItemBuyable(itemId) && IsSpellReagentItem(proto))
+            return ITEM_USAGE_VENDOR;
+
+        if (IsSpellReagentItem(proto))
+            return IsItemNeededForUsefullSpell(proto, false) ? ITEM_USAGE_KEEP : ITEM_USAGE_VENDOR;
+
+        if (!sPlayerbotAIConfig.enableAuctionHouseBotting)
+            return ITEM_USAGE_VENDOR;
+
         if (sPlayerbotAIConfig.IsInAuctionHouseExcludedItemList(itemId))
             return ITEM_USAGE_KEEP;
 
         if (!sPlayerbotAuctionHousePolicyMgr.IsSellable(itemId))
             return ITEM_USAGE_KEEP;
-
-        if (PlayerbotSpellRepository::Instance().IsItemBuyable(itemId))
-            return ITEM_USAGE_VENDOR;
-
-        if (proto->Class == ITEM_CLASS_PROJECTILE)
-            return ITEM_USAGE_VENDOR;
-
-        if (IsSpellReagentItem(proto))
-            return IsItemNeededForUsefullSpell(proto, false) ? ITEM_USAGE_KEEP : ITEM_USAGE_VENDOR;
 
         if (proto->Quality == ITEM_QUALITY_NORMAL && !IsAuctionHouseMaterial(proto))
             return ITEM_USAGE_VENDOR;

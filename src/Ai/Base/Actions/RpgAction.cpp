@@ -45,30 +45,35 @@ bool RpgAction::isUseful() { return AI_VALUE(GuidPosition, "rpg target"); }
 
 bool RpgAction::SetNextRpgAction()
 {
-    GuidVector auctionCandidates = AI_VALUE(GuidVector, "possible rpg targets");
-    if (auctionCandidates.empty())
-        auctionCandidates = AI_VALUE(GuidVector, "nearest npcs");
-
-    for (ObjectGuid const& guid : auctionCandidates)
+    if (sPlayerbotAIConfig.enableAuctionHouseBotting)
     {
-        Creature* auctioneer = bot->GetNPCIfCanInteractWith(guid, UNIT_NPC_FLAG_AUCTIONEER);
-        if (!auctioneer)
-            continue;
+        GuidVector auctionCandidates = AI_VALUE(GuidVector, "possible rpg targets");
+        if (auctionCandidates.empty())
+            auctionCandidates = AI_VALUE(GuidVector, "nearest npcs");
 
-        SET_AI_VALUE(GuidPosition, "rpg target", GuidPosition(auctioneer));
-
-        uint32 ahItemCount =
-            AI_VALUE2(uint32, "item count", "usage " + std::to_string(ITEM_USAGE_AH));
-        if (ahItemCount > 0)
+        for (ObjectGuid const& guid : auctionCandidates)
         {
-            SET_AI_VALUE(std::string, "next rpg action", "rpg sell");
-            return true;
-        }
+            Creature* auctioneer = bot->GetNPCIfCanInteractWith(guid, UNIT_NPC_FLAG_AUCTIONEER);
+            if (!auctioneer)
+                continue;
 
-        if (urand(1, 100) <= 25)
-        {
-            SET_AI_VALUE(std::string, "next rpg action", "rpg buy");
-            return true;
+            GuidPosition auctioneerPosition(auctioneer);
+
+            uint32 ahItemCount =
+                AI_VALUE2(uint32, "item count", "usage " + std::to_string(ITEM_USAGE_AH));
+            if (ahItemCount > 0)
+            {
+                SET_AI_VALUE(GuidPosition, "rpg target", auctioneerPosition);
+                SET_AI_VALUE(std::string, "next rpg action", "rpg sell");
+                return true;
+            }
+
+            if (urand(1, 100) <= 25)
+            {
+                SET_AI_VALUE(GuidPosition, "rpg target", auctioneerPosition);
+                SET_AI_VALUE(std::string, "next rpg action", "rpg buy");
+                return true;
+            }
         }
     }
 

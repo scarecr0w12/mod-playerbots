@@ -7,6 +7,7 @@
 
 #include "BudgetValues.h"
 #include "GuildCreateActions.h"
+#include "ItemUsageValue.h"
 #include "Playerbots.h"
 #include "ServerFacade.h"
 #include "SocialMgr.h"
@@ -128,7 +129,15 @@ bool RpgBuyTrigger::IsActive()
         return false;
 
     if (hasAuctioneer)
-        return true;
+    {
+        if (!sPlayerbotAIConfig.enableAuctionHouseBotting)
+            return false;
+
+        if (AI_VALUE2(uint32, "item count", "usage " + std::to_string(ITEM_USAGE_AH)) > 0)
+            return false;
+
+        return AI_VALUE(bool, "can sell");
+    }
 
     if (hasVendor && AI_VALUE(uint8, "durability") > 50)
         return false;
@@ -149,7 +158,15 @@ bool RpgSellTrigger::IsActive()
         return false;
 
     if (hasAuctioneer)
-        return true;
+    {
+        if (!sPlayerbotAIConfig.enableAuctionHouseBotting)
+            return false;
+
+        if (!AI_VALUE(bool, "can sell"))
+            return false;
+
+        return AI_VALUE2(uint32, "item count", "usage " + std::to_string(ITEM_USAGE_AH)) > 0;
+    }
 
     if (!AI_VALUE(bool, "can sell"))
         return false;

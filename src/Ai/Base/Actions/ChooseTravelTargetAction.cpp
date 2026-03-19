@@ -56,7 +56,7 @@ void ChooseTravelTargetAction::getNewTarget(TravelTarget* newTarget, TravelTarge
              AI_VALUE2(bool, "group or", "should repair,can repair,following party,near leader")
             )
         {
-            if (preferredAhItemCount > 0 || ahItemCount > 0)
+            if (sPlayerbotAIConfig.enableAuctionHouseBotting && (preferredAhItemCount > 0 || ahItemCount > 0))
                 foundTarget = SetNpcFlagTarget(newTarget, { UNIT_NPC_FLAG_AUCTIONEER });
 
             if (!foundTarget)
@@ -65,7 +65,7 @@ void ChooseTravelTargetAction::getNewTarget(TravelTarget* newTarget, TravelTarge
     }
 
     // Visit auctioneers as part of normal RPG behavior
-    if (!foundTarget && bot->GetLevel() > 5)
+    if (sPlayerbotAIConfig.enableAuctionHouseBotting && !foundTarget && bot->GetLevel() > 5)
     {
         if (preferredAhItemCount > 0)
             foundTarget = SetNpcFlagTarget(newTarget, { UNIT_NPC_FLAG_AUCTIONEER });

@@ -34,7 +34,12 @@ bool BuyAction::Execute(Event event)
     }
 
     if (buyAuction)
+    {
+        if (!sPlayerbotAIConfig.enableAuctionHouseBotting)
+            return false;
+
         return BuyFromAuctionHouse();
+    }
 
     GuidVector vendors = botAI->GetAiObjectContext()->GetValue<GuidVector>("nearest npcs")->Get();
 
@@ -234,6 +239,9 @@ bool BuyAction::Execute(Event event)
 
 bool BuyAction::BuyFromAuctionHouse()
 {
+    if (!sPlayerbotAIConfig.enableAuctionHouseBotting)
+        return false;
+
     GuidVector npcs = botAI->GetAiObjectContext()->GetValue<GuidVector>("nearest npcs")->Get();
 
     ObjectGuid auctioneerGuid;

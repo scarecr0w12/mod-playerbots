@@ -68,7 +68,9 @@ bool NewRpgStatusUpdateAction::Execute(Event /*event*/)
             uint32 ahItemCount = botAI->GetAiObjectContext()
                                      ->GetValue<uint32>("item count", "usage " + std::to_string(ITEM_USAGE_AH))
                                      ->Get();
-            if (ahItemCount > 0 && CheckRpgStatusAvailable(RPG_WANDER_NPC))
+            if (sPlayerbotAIConfig.enableAuctionHouseBotting &&
+                ahItemCount >= sPlayerbotAIConfig.rpgFarmingAuctionThreshold &&
+                CheckRpgStatusAvailable(RPG_WANDER_NPC))
             {
                 LOG_DEBUG("playerbots", "[New RPG] {} forcing wander-npc for auction visit (ah items={})",
                     bot->GetName(), ahItemCount);
@@ -149,7 +151,9 @@ bool NewRpgStatusUpdateAction::Execute(Event /*event*/)
             uint32 ahItemCount = botAI->GetAiObjectContext()
                                      ->GetValue<uint32>("item count", "usage " + std::to_string(ITEM_USAGE_AH))
                                      ->Get();
-            if (ahItemCount >= sPlayerbotAIConfig.rpgFarmingAuctionThreshold && CheckRpgStatusAvailable(RPG_WANDER_NPC))
+            if (sPlayerbotAIConfig.enableAuctionHouseBotting &&
+                ahItemCount >= sPlayerbotAIConfig.rpgFarmingAuctionThreshold &&
+                CheckRpgStatusAvailable(RPG_WANDER_NPC))
             {
                 LOG_DEBUG("playerbots", "[New RPG] {} switching farming -> wander-npc to post auction items (ah items={})",
                     bot->GetName(), ahItemCount);
@@ -260,18 +264,21 @@ bool NewRpgWanderNpcAction::Execute(Event /*event*/)
             {
                 if (creature->HasNpcFlag(UNIT_NPC_FLAG_AUCTIONEER))
                 {
+                    if (!sPlayerbotAIConfig.enableAuctionHouseBotting)
+                        return true;
+
                     uint32 ahItemCount = botAI->GetAiObjectContext()
                                              ->GetValue<uint32>("item count", "usage " + std::to_string(ITEM_USAGE_AH))
                                              ->Get();
 
                     if (ahItemCount > 0)
                     {
-                        LOG_INFO("playerbots", "[New RPG] {} selected auctioneer sell (ah items={})",
+                        LOG_DEBUG("playerbots", "[New RPG] {} selected auctioneer sell (ah items={})",
                             bot->GetName(), ahItemCount);
                         botAI->DoSpecificAction("sell", Event("rpg action", "auction"), true);
                     }
 
-                    LOG_INFO("playerbots", "[New RPG] {} selected auctioneer buy", bot->GetName());
+                    LOG_DEBUG("playerbots", "[New RPG] {} selected auctioneer buy", bot->GetName());
                     botAI->DoSpecificAction("buy", Event("rpg action", "auction"), true);
                 }
             }

@@ -252,9 +252,9 @@ std::string const RpgBuyAction::ActionName() { return "buy"; }
 Event RpgBuyAction::ActionEvent(Event /*event*/)
 {
     GuidPosition guidP = rpg->guidP();
-    if (guidP.HasNpcFlag(UNIT_NPC_FLAG_AUCTIONEER))
+    if (sPlayerbotAIConfig.enableAuctionHouseBotting && guidP.HasNpcFlag(UNIT_NPC_FLAG_AUCTIONEER))
     {
-        LOG_INFO("playerbots", "{}: selected RPG auction buy action", bot->GetName());
+        LOG_DEBUG("playerbots", "{}: selected RPG auction buy action", bot->GetName());
         return Event("rpg action", "auction");
     }
 
@@ -266,9 +266,9 @@ std::string const RpgSellAction::ActionName() { return "sell"; }
 Event RpgSellAction::ActionEvent(Event /*event*/)
 {
     GuidPosition guidP = rpg->guidP();
-    if (guidP.HasNpcFlag(UNIT_NPC_FLAG_AUCTIONEER))
+    if (sPlayerbotAIConfig.enableAuctionHouseBotting && guidP.HasNpcFlag(UNIT_NPC_FLAG_AUCTIONEER))
     {
-        LOG_INFO("playerbots", "{}: selected RPG auction sell action", bot->GetName());
+        LOG_DEBUG("playerbots", "{}: selected RPG auction sell action", bot->GetName());
         return Event("rpg action", "auction");
     }
 

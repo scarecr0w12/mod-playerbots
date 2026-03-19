@@ -20,112 +20,112 @@
 
 namespace
 {
-constexpr uint32 AuctionHouseMaterialMinCount = 5;
+    constexpr uint32 AuctionHouseMaterialMinCount = 5;
 
-uint32 RoundAuctionPrice(double price)
-{
-    if (price <= 1.0)
-        return 1;
-
-    if (price < 100.0)
-        return uint32(price);
-
-    if (price < 10000.0)
-        return uint32(price / 100.0) * 100;
-
-    if (price < 100000.0)
-        return uint32(price / 1000.0) * 1000;
-
-    return uint32(price / 10000.0) * 10000;
-}
-
-uint32 GetAuctionStackCount(Item* item, PlayerbotAuctionItemPolicy const& policy)
-{
-    if (!item)
-        return 0;
-
-    uint32 itemCount = item->GetCount();
-    if (!itemCount)
-        return 0;
-
-    uint32 maxStackCount = std::min<uint32>(itemCount, item->GetMaxStackCount());
-    if (policy.maxStackCount)
-        maxStackCount = std::min<uint32>(maxStackCount, std::max<uint32>(1, policy.maxStackCount));
-
-    if (!sPlayerbotAIConfig.auctionHouseRandomStackSize)
-        return maxStackCount ? maxStackCount : itemCount;
-
-    if (maxStackCount <= 1)
-        return 1;
-
-    uint32 minStackCount = 1;
-    if (IsAuctionHouseMaterial(item->GetTemplate()) && itemCount >= AuctionHouseMaterialMinCount)
-        minStackCount = std::min<uint32>(AuctionHouseMaterialMinCount, maxStackCount);
-
-    if (policy.minStackCount)
-        minStackCount = std::min<uint32>(std::max<uint32>(1, policy.minStackCount), maxStackCount);
-
-    if (maxStackCount <= minStackCount)
-        return maxStackCount;
-
-    return urand(minStackCount, maxStackCount);
-}
-
-uint32 GetAuctionUnitPrice(Player* bot, ItemTemplate const* proto, AuctionHouseObject* auctionHouse,
-    PlayerbotAuctionItemPolicy const& policy, PlayerbotAuctionMarketSnapshot* marketSnapshot = nullptr)
-{
-    if (!bot || !proto)
-        return 0;
-
-    uint32 marketWeight = std::min<uint32>(100, policy.marketPriceWeightPct);
-
-    uint32 unitPrice = 0;
-
-    if (proto->BuyPrice)
-        unitPrice = RoundAuctionPrice(proto->BuyPrice * sRandomPlayerbotMgr.GetBuyMultiplier(bot));
-    else if (proto->SellPrice)
-        unitPrice = RoundAuctionPrice(proto->SellPrice * std::max(1.0, sRandomPlayerbotMgr.GetSellMultiplier(bot)));
-    else
-        unitPrice = 1;
-
-    if (!marketWeight)
-        return std::max<uint32>(1, unitPrice);
-
-    PlayerbotAuctionMarketSnapshot snapshot =
-        GetPlayerbotAuctionMarketSnapshot(auctionHouse, proto->ItemId, bot->GetGUID());
-    if (marketSnapshot)
-        *marketSnapshot = snapshot;
-
-    uint32 marketUnitPrice = GetPlayerbotAuctionReferenceUnitPrice(snapshot);
-    if (!marketUnitPrice)
-        return std::max<uint32>(1, unitPrice);
-
-    return std::max<uint32>(1,
-        RoundAuctionPrice((double(unitPrice) * (100 - marketWeight) + double(marketUnitPrice) * marketWeight) / 100.0));
-}
-
-bool HasNearbyAuctioneer(Player* bot, GuidVector const& npcs, ObjectGuid& auctioneerGuid)
-{
-    for (ObjectGuid const& guid : npcs)
+    uint32 RoundAuctionPrice(double price)
     {
-        if (!bot->GetNPCIfCanInteractWith(guid, UNIT_NPC_FLAG_AUCTIONEER))
-            continue;
+        if (price <= 1.0)
+            return 1;
 
-        auctioneerGuid = guid;
-        return true;
+        if (price < 100.0)
+            return uint32(price);
+
+        if (price < 10000.0)
+            return uint32(price / 100.0) * 100;
+
+        if (price < 100000.0)
+            return uint32(price / 1000.0) * 1000;
+
+        return uint32(price / 10000.0) * 10000;
     }
 
-    return false;
-}
+    uint32 GetAuctionStackCount(Item* item, PlayerbotAuctionItemPolicy const& policy)
+    {
+        if (!item)
+            return 0;
 
-bool IsSpellReagentItem(ItemTemplate const* proto)
-{
-    if (!proto)
+        uint32 itemCount = item->GetCount();
+        if (!itemCount)
+            return 0;
+
+        uint32 maxStackCount = std::min<uint32>(itemCount, item->GetMaxStackCount());
+        if (policy.maxStackCount)
+            maxStackCount = std::min<uint32>(maxStackCount, std::max<uint32>(1, policy.maxStackCount));
+
+        if (!sPlayerbotAIConfig.auctionHouseRandomStackSize)
+            return maxStackCount ? maxStackCount : itemCount;
+
+        if (maxStackCount <= 1)
+            return 1;
+
+        uint32 minStackCount = 1;
+        if (IsAuctionHouseMaterial(item->GetTemplate()) && itemCount >= AuctionHouseMaterialMinCount)
+            minStackCount = std::min<uint32>(AuctionHouseMaterialMinCount, maxStackCount);
+
+        if (policy.minStackCount)
+            minStackCount = std::min<uint32>(std::max<uint32>(1, policy.minStackCount), maxStackCount);
+
+        if (maxStackCount <= minStackCount)
+            return maxStackCount;
+
+        return urand(minStackCount, maxStackCount);
+    }
+
+    uint32 GetAuctionUnitPrice(Player* bot, ItemTemplate const* proto, AuctionHouseObject* auctionHouse,
+        PlayerbotAuctionItemPolicy const& policy, PlayerbotAuctionMarketSnapshot* marketSnapshot = nullptr)
+    {
+        if (!bot || !proto)
+            return 0;
+
+        uint32 marketWeight = std::min<uint32>(100, policy.marketPriceWeightPct);
+
+        uint32 unitPrice = 0;
+
+        if (proto->BuyPrice)
+            unitPrice = RoundAuctionPrice(proto->BuyPrice * sRandomPlayerbotMgr.GetBuyMultiplier(bot));
+        else if (proto->SellPrice)
+            unitPrice = RoundAuctionPrice(proto->SellPrice * std::max(1.0, sRandomPlayerbotMgr.GetSellMultiplier(bot)));
+        else
+            unitPrice = 1;
+
+        if (!marketWeight)
+            return std::max<uint32>(1, unitPrice);
+
+        PlayerbotAuctionMarketSnapshot snapshot =
+            GetPlayerbotAuctionMarketSnapshot(auctionHouse, proto->ItemId, bot->GetGUID());
+        if (marketSnapshot)
+            *marketSnapshot = snapshot;
+
+        uint32 marketUnitPrice = GetPlayerbotAuctionReferenceUnitPrice(snapshot);
+        if (!marketUnitPrice)
+            return std::max<uint32>(1, unitPrice);
+
+        return std::max<uint32>(1,
+            RoundAuctionPrice((double(unitPrice) * (100 - marketWeight) + double(marketUnitPrice) * marketWeight) / 100.0));
+    }
+
+    bool HasNearbyAuctioneer(Player* bot, GuidVector const& npcs, ObjectGuid& auctioneerGuid)
+    {
+        for (ObjectGuid const& guid : npcs)
+        {
+            if (!bot->GetNPCIfCanInteractWith(guid, UNIT_NPC_FLAG_AUCTIONEER))
+                continue;
+
+            auctioneerGuid = guid;
+            return true;
+        }
+
         return false;
+    }
 
-    return proto->Class == ITEM_CLASS_REAGENT ||
-           (proto->Class == ITEM_CLASS_MISC && proto->SubClass == ITEM_SUBCLASS_REAGENT);
-}
+    bool IsSpellReagentItem(ItemTemplate const* proto)
+    {
+        if (!proto)
+            return false;
+
+        return proto->Class == ITEM_CLASS_REAGENT ||
+               (proto->Class == ITEM_CLASS_MISC && proto->SubClass == ITEM_SUBCLASS_REAGENT);
+    }
 }
 
 class SellItemsVisitor : public IterateItemsVisitor
@@ -182,12 +182,6 @@ public:
 
     bool Visit(Item* item) override
     {
-        if (sPlayerbotAIConfig.IsInAuctionHouseExcludedItemList(item->GetEntry()))
-            return true;
-
-        if (!sPlayerbotAuctionHousePolicyMgr.IsSellable(item->GetEntry()))
-            return true;
-
         ItemUsage usage = context->GetValue<ItemUsage>("item usage", item->GetEntry())->Get();
         if (usage != ITEM_USAGE_AH)
             return true;
@@ -220,6 +214,9 @@ bool SellAction::Execute(Event event)
 
     if (text == "auction")
     {
+        if (!sPlayerbotAIConfig.enableAuctionHouseBotting)
+            return false;
+
         SellAhItemsVisitor visitor(this, context);
         IterateItems(&visitor);
         return true;
@@ -240,6 +237,9 @@ bool SellAction::Execute(Event event)
 }
 bool SellAction::SellToAuctionHouse(Item* item)
 {
+    if (!sPlayerbotAIConfig.enableAuctionHouseBotting)
+        return false;
+
     if (!item)
         return false;
 
@@ -369,7 +369,7 @@ void SellAction::Sell(Item* item)
         return;
 
     ItemUsage usage = context->GetValue<ItemUsage>("item usage", item->GetEntry())->Get();
-    if (usage == ITEM_USAGE_AH && SellToAuctionHouse(item))
+    if (sPlayerbotAIConfig.enableAuctionHouseBotting && usage == ITEM_USAGE_AH && SellToAuctionHouse(item))
         return;
 
     std::ostringstream out;
