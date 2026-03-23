@@ -12,16 +12,16 @@
 #include "ItemUsageValue.h"
 #include "ItemVisitors.h"
 #include "Log.h"
+#include "PlayerbotOperations.h"
 #include "Playerbots.h"
 #include "PlayerbotAuctionHousePolicy.h"
+#include "PlayerbotWorldThreadProcessor.h"
 #include "ItemPackets.h"
 
 #include <algorithm>
 
 namespace
 {
-    constexpr uint32 AuctionHouseMaterialMinCount = 5;
-
     uint32 RoundAuctionPrice(double price)
     {
         if (price <= 1.0)
@@ -316,41 +316,12 @@ bool SellAction::SellToAuctionHouse(Item* item)
 
     uint32 etime = uint32(12 * HOUR / MINUTE);
 
-    uint32 oldCount = bot->GetItemCount(proto->ItemId, true);
-    uint32 botMoney = bot->GetMoney();
+    auto sellOp = std::make_unique<AuctionSellOperation>(
+        bot->GetGUID(), auctioneerGuid, item->GetGUID(), proto->ItemId,
+        itemCount, startBid, buyout, etime);
 
-    WorldPacket packet(CMSG_AUCTION_SELL_ITEM);
-    packet << auctioneerGuid;
-    packet << uint32(1);
-    packet << item->GetGUID();
-    packet << itemCount;
-    packet << startBid;
-    packet << buyout;
-    packet << etime;
-
-    bot->GetSession()->HandleAuctionSellItem(packet);
-
-    if (botAI->HasCheat(BotCheatMask::gold))
-        bot->SetMoney(botMoney);
-
-    if (bot->GetItemCount(proto->ItemId, true) >= oldCount)
-    {
-        LOG_DEBUG("playerbots",
-            "{}: failed to post {} x{} to auction house via {} (bid={}, buyout={})",
-            bot->GetName(), proto->Name1, itemCount, auctioneerGuid.ToString(), startBid, buyout);
-        return false;
-    }
-
-    LOG_DEBUG("playerbots",
-        "{}: posted {} x{} to auction house via {} (bid={}, buyout={})",
-        bot->GetName(), proto->Name1, itemCount, auctioneerGuid.ToString(), startBid, buyout);
-
-    std::ostringstream out;
-    out << "Posting to auction house " << chat->FormatItem(proto, itemCount)
-        << " for " << startBid << ".." << buyout;
-    botAI->TellMaster(out);
-
-    return true;
+    return PlayerbotWorldThreadProcessor::instance().QueueOperation(
+        std::move(sellOp));
 }
 
 void SellAction::Sell(FindItemVisitor* visitor)

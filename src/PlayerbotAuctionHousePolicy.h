@@ -55,8 +55,8 @@ public:
         std::lock_guard<std::mutex> guard(_lock);
 
         _policies.clear();
-        _tableAvailable = TableExistsLocked();
-        if (!_tableAvailable)
+        bool const tableAvailable = TableExistsLocked();
+        if (!tableAvailable)
         {
             LOG_WARN("playerbots", "playerbots_auction_item_policy table not found. Using built-in auction defaults.");
             return;
@@ -137,7 +137,6 @@ private:
 private:
     mutable std::mutex _lock;
     std::unordered_map<uint32, PlayerbotAuctionItemPolicy> _policies;
-    bool _tableAvailable = false;
 };
 
 inline PlayerbotAuctionMarketSnapshot GetPlayerbotAuctionMarketSnapshot(

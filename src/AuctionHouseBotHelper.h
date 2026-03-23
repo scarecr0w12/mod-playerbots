@@ -13,6 +13,8 @@
 #include "ItemUsageValue.h"
 #include "Player.h"
 
+inline constexpr uint32 AuctionHouseMaterialMinCount = 5;
+
 inline bool IsAuctionHouseMaterial(ItemTemplate const* proto)
 {
     if (!proto)

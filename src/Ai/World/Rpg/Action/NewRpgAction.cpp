@@ -267,6 +267,8 @@ bool NewRpgWanderNpcAction::Execute(Event /*event*/)
                     if (!sPlayerbotAIConfig.enableAuctionHouseBotting)
                         return true;
 
+                    // Only evaluate AH sell/buy once when the bot first reaches the auctioneer.
+                    // Subsequent updates while lingering here skip this block because lastReach is set.
                     uint32 ahItemCount = botAI->GetAiObjectContext()
                                              ->GetValue<uint32>("item count", "usage " + std::to_string(ITEM_USAGE_AH))
                                              ->Get();
@@ -277,9 +279,11 @@ bool NewRpgWanderNpcAction::Execute(Event /*event*/)
                             bot->GetName(), ahItemCount);
                         botAI->DoSpecificAction("sell", Event("rpg action", "auction"), true);
                     }
-
-                    LOG_DEBUG("playerbots", "[New RPG] {} selected auctioneer buy", bot->GetName());
-                    botAI->DoSpecificAction("buy", Event("rpg action", "auction"), true);
+                    else if (urand(1, 100) <= 25)
+                    {
+                        LOG_DEBUG("playerbots", "[New RPG] {} selected auctioneer buy", bot->GetName());
+                        botAI->DoSpecificAction("buy", Event("rpg action", "auction"), true);
+                    }
                 }
             }
 

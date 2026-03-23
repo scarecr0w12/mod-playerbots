@@ -12,6 +12,8 @@
 #include "ItemUsageValue.h"
 #include "ItemVisitors.h"
 #include "Log.h"
+#include "PlayerbotOperations.h"
+#include "PlayerbotWorldThreadProcessor.h"
 #include "Playerbots.h"
 #include "StatsWeightCalculator.h"
 
@@ -312,46 +314,11 @@ bool BuyAction::BuyAuction(ObjectGuid auctioneerGuid, AuctionEntry* auction)
     uint32 const buyout = auction->buyout;
     uint32 const itemTemplateId = auction->item_template;
 
-    Creature* auctioneer = bot->GetNPCIfCanInteractWith(auctioneerGuid, UNIT_NPC_FLAG_AUCTIONEER);
-    if (!auctioneer)
-        return false;
+    auto buyOp = std::make_unique<AuctionBuyOperation>(
+        bot->GetGUID(), auctioneerGuid, auctionId, buyout, itemTemplateId);
 
-    AuctionHouseObject* auctionHouse = sAuctionMgr->GetAuctionsMap(auctioneer->GetFaction());
-    if (!auctionHouse || !auctionHouse->GetAuction(auctionId))
-        return false;
-
-    uint32 botMoney = bot->GetMoney();
-
-    WorldPacket packet(CMSG_AUCTION_PLACE_BID);
-    packet << auctioneerGuid;
-    packet << auctionId;
-    packet << buyout;
-
-    bot->GetSession()->HandleAuctionPlaceBid(packet);
-
-    if (botAI->HasCheat(BotCheatMask::gold))
-        bot->SetMoney(botMoney);
-
-    if (auctionHouse->GetAuction(auctionId))
-    {
-        LOG_DEBUG("playerbots", "{}: failed to buy auction {} via {} (buyout={})",
-            bot->GetName(), auctionId, auctioneerGuid.ToString(), buyout);
-        return false;
-    }
-
-    ItemTemplate const* boughtItemProto = sObjectMgr->GetItemTemplate(itemTemplateId);
-
-    LOG_DEBUG("playerbots", "{}: bought {} from auction house via {} for {}",
-        bot->GetName(), boughtItemProto ? boughtItemProto->Name1 : std::to_string(itemTemplateId),
-        auctioneerGuid.ToString(), buyout);
-
-    std::ostringstream out;
-    out << "Buying from auction house "
-        << (boughtItemProto ? ChatHelper::FormatItem(boughtItemProto) : std::to_string(itemTemplateId))
-        << " for " << buyout;
-    botAI->TellMaster(out.str());
-
-    return true;
+    return PlayerbotWorldThreadProcessor::instance().QueueOperation(
+        std::move(buyOp));
 }
 
 bool BuyAction::IsAuctionItemUseful(ItemTemplate const* proto, uint32 buyout,

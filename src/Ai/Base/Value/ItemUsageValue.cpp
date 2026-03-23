@@ -22,8 +22,6 @@
 
 namespace
 {
-    constexpr uint32 AuctionHouseMaterialMinCount = 5;
-
     bool IsSpellReagentItem(ItemTemplate const* proto)
     {
         if (!proto)
@@ -32,7 +30,6 @@ namespace
         return proto->Class == ITEM_CLASS_REAGENT ||
                (proto->Class == ITEM_CLASS_MISC && proto->SubClass == ITEM_SUBCLASS_REAGENT);
     }
-
 }
 
 ItemUsage ItemUsageValue::Calculate()
