@@ -442,6 +442,10 @@ bool TameAction::CreateAndSetPet(uint32 creatureEntry)
     bot->SetMinion(pet, true);
     // Initialize talents appropriate for the pet's level
     pet->InitTalentForLevel();
+    // Save pet to the database as the current pet
+    pet->SavePetToDB(PET_SAVE_AS_CURRENT);
+    // Initialize available pet spells
+    bot->PetSpellInitialize();
 
     // Further initialize pet stats to match the bot's level
     pet->InitStatsForLevel(bot->GetLevel());
@@ -465,11 +469,6 @@ bool TameAction::CreateAndSetPet(uint32 creatureEntry)
 
         pet->ToggleAutocast(spellInfo, true);
     }
-
-    // Save pet after autocast setup so newly learned pet spells are inserted only once
-    pet->SavePetToDB(PET_SAVE_AS_CURRENT);
-    // Initialize available pet spells
-    bot->PetSpellInitialize();
 
     return true;
 }

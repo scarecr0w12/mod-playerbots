@@ -2179,14 +2179,20 @@ bool BGTactics::selectObjective(bool reset)
 
             switch (strategy)
             {
-                case WS_STRATEGY_BALANCED:
-                default:
+                case 0:
+                case 1:
+                case 2:
+                case 3:  // Balanced
                     defendersProhab = 3;
                     break;
-                case WS_STRATEGY_OFFENSIVE:
+                case 4:
+                case 5:
+                case 6:
+                case 7:  // Heavy Offense
                     defendersProhab = 1;
                     break;
-                case WS_STRATEGY_DEFENSIVE:
+                case 8:
+                case 9:  // Heavy Defense
                     defendersProhab = 6;
                     break;
             }
