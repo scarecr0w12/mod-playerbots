@@ -17,7 +17,6 @@
 
 #include "Playerbots.h"
 
-#include "BattlefieldScript.h"
 #include "Channel.h"
 #include "Config.h"
 #include "DatabaseEnv.h"
@@ -25,6 +24,7 @@
 #include "GuildTaskMgr.h"
 #include "PlayerScript.h"
 #include "PlayerbotAIConfig.h"
+#include "PlayerbotAuctionHousePolicy.h"
 #include "PlayerbotGuildMgr.h"
 #include "PlayerbotSpellRepository.h"
 #include "PlayerbotWorldThreadProcessor.h"
@@ -374,6 +374,9 @@ public:
         LOG_INFO("server.loading", ">> Loaded playerbots config in {} ms", GetMSTimeDiffToNow(oldMSTime));
         LOG_INFO("server.loading", " ");
 
+        if (sPlayerbotAIConfig.enableAuctionHouseBotting)
+            sPlayerbotAuctionHousePolicyMgr.Initialize();
+
         PlayerbotSpellRepository::Instance().Initialize();
 
         LOG_INFO("server.loading", "Playerbots World Thread Processor initialized");
@@ -519,20 +522,12 @@ public:
     void OnBattlegroundEnd(Battleground* bg, TeamId /*winnerTeam*/) override { bgStrategies.erase(bg->GetInstanceID()); }
 };
 
-// Workaround for missing InitEnabledHooksIfNeeded for new BattlefieldScript in ScriptMgr
-class PlayerbotsBattlefieldScript : public BattlefieldScript
-{
-public:
-    PlayerbotsBattlefieldScript() : BattlefieldScript("PlayerbotsBattlefieldScript") { }
-};
-
 void AddPlayerbotsSecureLoginScripts();
 
 void AddSC_TempestKeepBotScripts();
 
 void AddPlayerbotsScripts()
 {
-    new PlayerbotsBattlefieldScript();
     new PlayerbotsDatabaseScript();
     new PlayerbotsPlayerScript();
     new PlayerbotsMiscScript();

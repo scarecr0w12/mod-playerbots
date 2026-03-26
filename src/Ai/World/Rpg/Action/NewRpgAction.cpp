@@ -4,10 +4,13 @@
 #include <cstdlib>
 
 #include "BroadcastHelper.h"
+#include "AiObjectContext.h"
 #include "ChatHelper.h"
 #include "G3D/Vector2.h"
 #include "GossipDef.h"
+#include "ItemUsageValue.h"
 #include "IVMapMgr.h"
+#include "Log.h"
 #include "NewRpgInfo.h"
 #include "NewRpgStrategy.h"
 #include "Object.h"
@@ -61,13 +64,26 @@ bool NewRpgStatusUpdateAction::Execute(Event /*event*/)
     switch (status)
     {
         case RPG_IDLE:
+        {
+            uint32 ahItemCount = botAI->GetAiObjectContext()
+                                     ->GetValue<uint32>("item count", "usage " + std::to_string(ITEM_USAGE_AH))
+                                     ->Get();
+            if (sPlayerbotAIConfig.enableAuctionHouseBotting &&
+                ahItemCount >= sPlayerbotAIConfig.rpgFarmingAuctionThreshold &&
+                CheckRpgStatusAvailable(RPG_WANDER_NPC))
+            {
+                LOG_DEBUG("playerbots", "[New RPG] {} forcing wander-npc for auction visit (ah items={})",
+                    bot->GetName(), ahItemCount);
+                info.ChangeToWanderNpc();
+                return true;
+            }
+
             return RandomChangeStatus({RPG_GO_CAMP, RPG_GO_GRIND, RPG_WANDER_RANDOM, RPG_WANDER_NPC, RPG_DO_QUEST,
                                        RPG_TRAVEL_FLIGHT, RPG_FARMING, RPG_REST});
+        }
 
         case RPG_GO_GRIND:
         {
-            auto& data = std::get<NewRpgInfo::GoGrind>(info.data);
-            WorldPosition& originalPos = data.pos;
             assert(data.pos != WorldPosition());
             // GO_GRIND -> WANDER_RANDOM
             if (bot->GetExactDist(originalPos) < 10.0f)
@@ -78,8 +94,6 @@ bool NewRpgStatusUpdateAction::Execute(Event /*event*/)
             break;
         }
         case RPG_GO_CAMP:
-        {
-            auto& data = std::get<NewRpgInfo::GoCamp>(info.data);
             WorldPosition& originalPos = data.pos;
             assert(data.pos != WorldPosition());
             // GO_CAMP -> WANDER_NPC
@@ -132,6 +146,22 @@ bool NewRpgStatusUpdateAction::Execute(Event /*event*/)
         }
         case RPG_FARMING:
         {
+<<<<<<< HEAD
+=======
+            uint32 ahItemCount = botAI->GetAiObjectContext()
+                                     ->GetValue<uint32>("item count", "usage " + std::to_string(ITEM_USAGE_AH))
+                                     ->Get();
+            if (sPlayerbotAIConfig.enableAuctionHouseBotting &&
+                ahItemCount >= sPlayerbotAIConfig.rpgFarmingAuctionThreshold &&
+                CheckRpgStatusAvailable(RPG_WANDER_NPC))
+            {
+                LOG_DEBUG("playerbots", "[New RPG] {} switching farming -> wander-npc to post auction items (ah items={})",
+                    bot->GetName(), ahItemCount);
+                info.ChangeToWanderNpc();
+                return true;
+            }
+
+>>>>>>> 5afbe392 (fix(Core/Playerbots): address AH review findings)
             if (info.HasStatusPersisted(statusFarmingDuration))
             {
                 info.ChangeToIdle();
@@ -229,6 +259,34 @@ bool NewRpgWanderNpcAction::Execute(Event /*event*/)
             data.lastReach = getMSTime();
             if (bot->CanInteractWithQuestGiver(object))
                 InteractWithNpcOrGameObjectForQuest(data.npcOrGo);
+
+            if (Creature* creature = object->ToCreature())
+            {
+                if (creature->HasNpcFlag(UNIT_NPC_FLAG_AUCTIONEER))
+                {
+                    if (!sPlayerbotAIConfig.enableAuctionHouseBotting)
+                        return true;
+
+                    // Only evaluate AH sell/buy once when the bot first reaches the auctioneer.
+                    // Subsequent updates while lingering here skip this block because lastReach is set.
+                    uint32 ahItemCount = botAI->GetAiObjectContext()
+                                             ->GetValue<uint32>("item count", "usage " + std::to_string(ITEM_USAGE_AH))
+                                             ->Get();
+
+                    if (ahItemCount > 0)
+                    {
+                        LOG_DEBUG("playerbots", "[New RPG] {} selected auctioneer sell (ah items={})",
+                            bot->GetName(), ahItemCount);
+                        botAI->DoSpecificAction("sell", Event("rpg action", "auction"), true);
+                    }
+                    else if (urand(1, 100) <= 25)
+                    {
+                        LOG_DEBUG("playerbots", "[New RPG] {} selected auctioneer buy", bot->GetName());
+                        botAI->DoSpecificAction("buy", Event("rpg action", "auction"), true);
+                    }
+                }
+            }
+
             return true;
         }
 

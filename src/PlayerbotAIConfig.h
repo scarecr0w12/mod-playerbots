@@ -76,6 +76,7 @@ public:
     bool Initialize();
     bool IsInRandomAccountList(uint32 id);
     bool IsInRandomQuestItemList(uint32 id);
+    bool IsInAuctionHouseExcludedItemList(uint32 id) const;
     bool IsPvpProhibited(uint32 zoneId, uint32 areaId);
     bool IsInPvpProhibitedZone(uint32 id);
     bool IsInPvpProhibitedArea(uint32 id);
@@ -142,6 +143,16 @@ public:
     uint32 minRandomBotPvpTime, maxRandomBotPvpTime;
     uint32 randomBotsPerInterval;
     uint32 minRandomBotsPriceChangeInterval, maxRandomBotsPriceChangeInterval;
+    bool enableAuctionHouseBotting;
+    bool auctionHouseRandomStackSize;
+    uint32 auctionHouseMinBidPrice;
+    uint32 auctionHouseUndercutChance;
+    uint32 auctionHouseUndercutMinPct;
+    uint32 auctionHouseUndercutMaxPct;
+    uint32 auctionHouseBuyoutMinPct;
+    uint32 auctionHouseBuyoutMaxPct;
+    uint32 rpgFarmingAuctionThreshold;
+    std::set<uint32> auctionHouseExcludedItemIds;
     uint32 disabledWithoutRealPlayerLoginDelay, disabledWithoutRealPlayerLogoutDelay;
     bool randomBotJoinLfg;
 

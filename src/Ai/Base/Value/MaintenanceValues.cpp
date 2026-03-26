@@ -3,6 +3,7 @@
  * and/or modify it under version 3 of the License, or (at your option), any later version.
  */
 
+#include "AuctionHouseBotHelper.h"
 #include "MaintenanceValues.h"
 
 #include "BudgetValues.h"
@@ -36,10 +37,19 @@ bool CanRepairValue::Calculate()
            AI_VALUE(uint32, "repair cost") < AI_VALUE2(uint32, "free money for", (uint32)NeedMoneyFor::repair);
 }
 
-bool ShouldSellValue::Calculate() { return AI_VALUE(uint8, "bag space") > 80; }
+bool ShouldSellValue::Calculate()
+{
+    if (AI_VALUE(uint8, "bag space") > 80)
+        return true;
+
+    return CountPreferredAuctionHouseItems(bot, context) > 0 && AI_VALUE(uint8, "bag space") > 60;
+}
 
 bool CanSellValue::Calculate()
 {
+    if (CountPreferredAuctionHouseItems(bot, context) > 0)
+        return true;
+
     return (AI_VALUE2(uint32, "item count", "usage " + std::to_string(ITEM_USAGE_VENDOR)) +
             AI_VALUE2(uint32, "item count", "usage " + std::to_string(ITEM_USAGE_AH))) > 1;
 }
