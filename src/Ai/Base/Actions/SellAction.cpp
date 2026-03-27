@@ -10,7 +10,6 @@
 #include "ItemVisitors.h"
 #include "Playerbots.h"
 #include "ItemPackets.h"
-
 class SellItemsVisitor : public IterateItemsVisitor
 {
 public:
@@ -87,7 +86,6 @@ bool SellAction::Execute(Event event)
     botAI->TellError("Usage: s gray/*/vendor/[item link]");
     return false;
 }
-
 void SellAction::Sell(FindItemVisitor* visitor)
 {
     IterateItems(visitor);

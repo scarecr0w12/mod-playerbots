@@ -62,7 +62,7 @@ bool NewRpgStatusUpdateAction::Execute(Event /*event*/)
     {
         case RPG_IDLE:
             return RandomChangeStatus({RPG_GO_CAMP, RPG_GO_GRIND, RPG_WANDER_RANDOM, RPG_WANDER_NPC, RPG_DO_QUEST,
-                                       RPG_TRAVEL_FLIGHT, RPG_REST});
+                                       RPG_TRAVEL_FLIGHT, RPG_FARMING, RPG_REST});
 
         case RPG_GO_GRIND:
         {
@@ -130,6 +130,15 @@ bool NewRpgStatusUpdateAction::Execute(Event /*event*/)
             }
             break;
         }
+        case RPG_FARMING:
+        {
+            if (info.HasStatusPersisted(statusFarmingDuration))
+            {
+                info.ChangeToIdle();
+                return true;
+            }
+            break;
+        }
         case RPG_REST:
         {
             // REST -> IDLE
@@ -163,6 +172,22 @@ bool NewRpgGoCampAction::Execute(Event /*event*/)
 
     if (auto* data = std::get_if<NewRpgInfo::GoCamp>(&botAI->rpgInfo.data))
         return MoveFarTo(data->pos);
+
+    return false;
+}
+
+bool NewRpgFarmingAction::Execute(Event /*event*/)
+{
+    if (auto* data = std::get_if<NewRpgInfo::Farming>(&botAI->rpgInfo.data))
+    {
+        if (data->pos == WorldPosition())
+            return false;
+
+        if (bot->GetExactDist(data->pos) > 10.0f)
+            return MoveFarTo(data->pos);
+
+        return MoveRandomNear();
+    }
 
     return false;
 }
@@ -231,7 +256,6 @@ bool NewRpgDoQuestAction::Execute(Event /*event*/)
         return false;
     auto& data = *dataPtr;
     uint32 questId = data.questId;
-    const Quest* quest = data.quest;
     uint8 questStatus = bot->GetQuestStatus(questId);
     switch (questStatus)
     {
@@ -438,7 +462,7 @@ bool NewRpgTravelFlightAction::Execute(Event /*event*/)
     if (bot->GetDistance(flightMaster) > INTERACTION_DISTANCE)
         return MoveFarTo(flightMaster);
 
-    std::vector<uint32> nodes = {data.fromNode, data.toNode};
+    std::vector<uint32> nodes = data.path;
 
     botAI->RemoveShapeshift();
     if (bot->IsMounted())
@@ -447,7 +471,7 @@ bool NewRpgTravelFlightAction::Execute(Event /*event*/)
     if (!bot->ActivateTaxiPathTo(nodes, flightMaster, 0))
     {
         LOG_DEBUG("playerbots", "[New RPG] {} active taxi path {} (from {} to {}) failed", bot->GetName(),
-                  flightMaster->GetEntry(), nodes[0], nodes[1]);
+                  flightMaster->GetEntry(), nodes[0], nodes[nodes.size() - 1]);
         botAI->rpgInfo.ChangeToIdle();
     }
     return true;

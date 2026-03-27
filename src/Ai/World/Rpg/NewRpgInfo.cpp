@@ -37,15 +37,20 @@ void NewRpgInfo::ChangeToDoQuest(uint32 questId, const Quest* quest)
     data = do_quest;
 }
 
-void NewRpgInfo::ChangeToTravelFlight(ObjectGuid fromFlightMaster, uint32 fromNode, uint32 toNode)
+void NewRpgInfo::ChangeToTravelFlight(ObjectGuid fromFlightMaster, std::vector<uint32> path)
 {
     startT = getMSTime();
     TravelFlight flight;
     flight.fromFlightMaster = fromFlightMaster;
-    flight.fromNode = fromNode;
-    flight.toNode = toNode;
+    flight.path = std::move(path);
     flight.inFlight = false;
     data = flight;
+}
+
+void NewRpgInfo::ChangeToFarming(WorldPosition pos)
+{
+    startT = getMSTime();
+    data = Farming{pos};
 }
 
 void NewRpgInfo::ChangeToRest()
@@ -91,6 +96,7 @@ NewRpgStatus NewRpgInfo::GetStatus()
         if constexpr (std::is_same_v<T, Rest>) return RPG_REST;
         if constexpr (std::is_same_v<T, DoQuest>) return RPG_DO_QUEST;
         if constexpr (std::is_same_v<T, TravelFlight>) return RPG_TRAVEL_FLIGHT;
+        if constexpr (std::is_same_v<T, Farming>) return RPG_FARMING;
         return RPG_IDLE;
     }, data);
 }
@@ -146,12 +152,19 @@ std::string NewRpgInfo::ToString()
                 << arg.pos.GetPositionY() << " " << arg.pos.GetPositionZ();
             out << "\nlastReachPOI: " << (arg.lastReachPOI ? GetMSTimeDiffToNow(arg.lastReachPOI) : 0);
         }
+        else if constexpr (std::is_same_v<T, Farming>)
+        {
+            out << "FARMING";
+            out << "\nFarmPos: " << arg.pos.GetMapId() << " " << arg.pos.GetPositionX() << " "
+                << arg.pos.GetPositionY() << " " << arg.pos.GetPositionZ();
+            out << "\nlastFarming: " << startT;
+        }
         else if constexpr (std::is_same_v<T, TravelFlight>)
         {
             out << "TRAVEL_FLIGHT";
             out << "\nfromFlightMaster: " << arg.fromFlightMaster.GetEntry();
-            out << "\nfromNode: " << arg.fromNode;
-            out << "\ntoNode: " << arg.toNode;
+            out << "\nfromNode: " << arg.path[0];
+            out << "\ntoNode: " << arg.path[arg.path.size() - 1];
             out << "\ninFlight: " << arg.inFlight;
         }
         else
