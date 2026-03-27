@@ -204,6 +204,7 @@ bool NewRpgWanderNpcAction::Execute(Event /*event*/)
             data.lastReach = getMSTime();
             if (bot->CanInteractWithQuestGiver(object))
                 InteractWithNpcOrGameObjectForQuest(data.npcOrGo);
+
             return true;
         }
 
@@ -438,6 +439,8 @@ bool NewRpgTravelFlightAction::Execute(Event /*event*/)
         return MoveFarTo(flightMaster);
 
     std::vector<uint32> nodes = data.path;
+    if (nodes.size() < 2)
+        return false;
 
     botAI->RemoveShapeshift();
     if (bot->IsMounted())
@@ -446,7 +449,7 @@ bool NewRpgTravelFlightAction::Execute(Event /*event*/)
     if (!bot->ActivateTaxiPathTo(nodes, flightMaster, 0))
     {
         LOG_DEBUG("playerbots", "[New RPG] {} active taxi path {} (from {} to {}) failed", bot->GetName(),
-                  flightMaster->GetEntry(), nodes[0], nodes[nodes.size() - 1]);
+                  flightMaster->GetEntry(), nodes.front(), nodes.back());
         botAI->rpgInfo.ChangeToIdle();
     }
     return true;

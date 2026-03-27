@@ -3,19 +3,34 @@
  * and/or modify it under version 3 of the License, or (at your option), any later version.
  */
 
+#include "AuctionHouseBotHelper.h"
 #include "ItemUsageValue.h"
 
 #include "AiFactory.h"
 #include "ChatHelper.h"
+#include "Db/PlayerbotSpellRepository.h"
 #include "GuildTaskMgr.h"
 #include "Item.h"
 #include "LootObjectStack.h"
 #include "PlayerbotAIConfig.h"
 #include "PlayerbotFactory.h"
+#include "PlayerbotAuctionHousePolicy.h"
 #include "Playerbots.h"
 #include "RandomItemMgr.h"
 #include "ServerFacade.h"
 #include "StatsWeightCalculator.h"
+
+namespace
+{
+    bool IsSpellReagentItem(ItemTemplate const* proto)
+    {
+        if (!proto)
+            return false;
+
+        return proto->Class == ITEM_CLASS_REAGENT ||
+               (proto->Class == ITEM_CLASS_MISC && proto->SubClass == ITEM_SUBCLASS_REAGENT);
+    }
+}
 
 ItemUsage ItemUsageValue::Calculate()
 {
@@ -58,11 +73,20 @@ ItemUsage ItemUsageValue::Calculate()
 
         if (needItem)
         {
-            float stacks = CurrentStacks(proto);
-            if (stacks < 1)
-                return ITEM_USAGE_SKILL;  // Buy more.
-            if (stacks < 2)
-                return ITEM_USAGE_KEEP;  // Keep current amount.
+            if (IsAuctionHouseMaterial(proto))
+            {
+                uint32 itemCount = bot->GetItemCount(proto->ItemId, true);
+                if (itemCount < AuctionHouseMaterialMinCount)
+                    return itemCount ? ITEM_USAGE_KEEP : ITEM_USAGE_SKILL;
+            }
+            else
+            {
+                float stacks = CurrentStacks(proto);
+                if (stacks < 1)
+                    return ITEM_USAGE_SKILL;  // Buy more.
+                if (stacks < 2)
+                    return ITEM_USAGE_KEEP;  // Keep current amount.
+            }
         }
     }
 
@@ -153,10 +177,40 @@ ItemUsage ItemUsageValue::Calculate()
     // Need to add something like free bagspace or item value.
     if (proto->SellPrice > 0)
     {
-        if (proto->Quality >= ITEM_QUALITY_NORMAL && !isSoulbound && proto->Bonding != BIND_WHEN_PICKED_UP)
-            return ITEM_USAGE_AH;
-        else
+        if (proto->Quality == ITEM_QUALITY_POOR)
             return ITEM_USAGE_VENDOR;
+
+        if (proto->Class == ITEM_CLASS_PROJECTILE)
+            return ITEM_USAGE_VENDOR;
+
+        if (PlayerbotSpellRepository::Instance().IsItemBuyable(itemId) && IsSpellReagentItem(proto))
+            return ITEM_USAGE_VENDOR;
+
+        if (IsSpellReagentItem(proto))
+            return IsItemNeededForUsefullSpell(proto, false) ? ITEM_USAGE_KEEP : ITEM_USAGE_VENDOR;
+
+        if (!sPlayerbotAIConfig.enableAuctionHouseBotting)
+            return ITEM_USAGE_VENDOR;
+
+        if (sPlayerbotAIConfig.IsInAuctionHouseExcludedItemList(itemId))
+            return ITEM_USAGE_KEEP;
+
+        if (!sPlayerbotAuctionHousePolicyMgr.IsSellable(itemId))
+            return ITEM_USAGE_KEEP;
+
+        if (proto->Quality == ITEM_QUALITY_NORMAL && !IsAuctionHouseMaterial(proto))
+            return ITEM_USAGE_VENDOR;
+
+        if (proto->Quality >= ITEM_QUALITY_NORMAL && !isSoulbound)
+        {
+            uint32 itemCount = bot->GetItemCount(itemId, true);
+            if (IsAuctionHouseMaterial(proto) && itemCount > 0 && itemCount < AuctionHouseMaterialMinCount)
+                return ITEM_USAGE_KEEP;
+
+            return ITEM_USAGE_AH;
+        }
+
+        return ITEM_USAGE_VENDOR;
     }
 
     return ITEM_USAGE_NONE;
@@ -407,7 +461,7 @@ ItemUsage ItemUsageValue::QueryItemUsageForEquip(ItemTemplate const* itemProto, 
 
 ItemUsage ItemUsageValue::QueryItemUsageForAmmo(ItemTemplate const* proto)
 {
-    if (bot->getClass() != CLASS_HUNTER || bot->getClass() != CLASS_ROGUE || bot->getClass() != CLASS_WARRIOR)
+    if (bot->getClass() != CLASS_HUNTER && bot->getClass() != CLASS_ROGUE && bot->getClass() != CLASS_WARRIOR)
         return ITEM_USAGE_NONE;
 
     Item* rangedWeapon = bot->GetItemByPos(INVENTORY_SLOT_BAG_0, EQUIPMENT_SLOT_RANGED);

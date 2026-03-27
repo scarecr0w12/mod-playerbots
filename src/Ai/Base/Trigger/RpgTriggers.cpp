@@ -7,6 +7,7 @@
 
 #include "BudgetValues.h"
 #include "GuildCreateActions.h"
+#include "ItemUsageValue.h"
 #include "Playerbots.h"
 #include "ServerFacade.h"
 #include "SocialMgr.h"
@@ -122,10 +123,23 @@ bool RpgBuyTrigger::IsActive()
 {
     GuidPosition guidP(getGuidP());
 
-    if (!guidP.HasNpcFlag(UNIT_NPC_FLAG_VENDOR))
+    bool hasVendor = guidP.HasNpcFlag(UNIT_NPC_FLAG_VENDOR);
+    bool hasAuctioneer = guidP.HasNpcFlag(UNIT_NPC_FLAG_AUCTIONEER);
+    if (!hasVendor && !hasAuctioneer)
         return false;
 
-    if (AI_VALUE(uint8, "durability") > 50)
+    if (hasAuctioneer)
+    {
+        if (!sPlayerbotAIConfig.enableAuctionHouseBotting)
+            return false;
+
+        if (AI_VALUE2(uint32, "item count", "usage " + std::to_string(ITEM_USAGE_AH)) > 0)
+            return false;
+
+        return AI_VALUE(bool, "can sell");
+    }
+
+    if (hasVendor && AI_VALUE(uint8, "durability") > 50)
         return false;
 
     if (!AI_VALUE(bool, "can sell"))  // Need better condition.
@@ -138,8 +152,21 @@ bool RpgSellTrigger::IsActive()
 {
     GuidPosition guidP(getGuidP());
 
-    if (!guidP.HasNpcFlag(UNIT_NPC_FLAG_VENDOR))
+    bool hasVendor = guidP.HasNpcFlag(UNIT_NPC_FLAG_VENDOR);
+    bool hasAuctioneer = guidP.HasNpcFlag(UNIT_NPC_FLAG_AUCTIONEER);
+    if (!hasVendor && !hasAuctioneer)
         return false;
+
+    if (hasAuctioneer)
+    {
+        if (!sPlayerbotAIConfig.enableAuctionHouseBotting)
+            return false;
+
+        if (!AI_VALUE(bool, "can sell"))
+            return false;
+
+        return AI_VALUE2(uint32, "item count", "usage " + std::to_string(ITEM_USAGE_AH)) > 0;
+    }
 
     if (!AI_VALUE(bool, "can sell"))
         return false;

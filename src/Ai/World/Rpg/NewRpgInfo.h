@@ -50,7 +50,9 @@ struct NewRpgInfo
     struct TravelFlight
     {
         ObjectGuid fromFlightMaster{};
-        std::vector<uint32> path;
+        uint32 fromNode{0};
+        uint32 toNode{0};
+        std::vector<uint32> path{};
         bool inFlight{false};
     };
     // RPG_REST
@@ -90,7 +92,7 @@ struct NewRpgInfo
     void ChangeToWanderNpc();
     void ChangeToWanderRandom();
     void ChangeToDoQuest(uint32 questId, const Quest* quest);
-    void ChangeToTravelFlight(ObjectGuid fromFlightMaster, std::vector<uint32> path);
+    void ChangeToTravelFlight(ObjectGuid fromFlightMaster, uint32 fromNode, uint32 toNode);
     void ChangeToRest();
     void ChangeToIdle();
     bool CanChangeTo(NewRpgStatus status);

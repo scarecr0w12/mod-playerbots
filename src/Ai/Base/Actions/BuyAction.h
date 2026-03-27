@@ -8,6 +8,10 @@
 
 #include "InventoryAction.h"
 
+#include "AuctionHouseMgr.h"
+#include "BudgetValues.h"
+#include "ItemUsageValue.h"
+
 class FindItemVisitor;
 class ObjectGuid;
 class Item;
@@ -25,6 +29,11 @@ public:
     bool Execute(Event event) override;
 
 private:
+    bool BuyFromAuctionHouse();
+    bool BuyAuction(ObjectGuid auctioneerGuid, AuctionEntry* auction);
+    bool IsAuctionItemUseful(ItemTemplate const* proto, uint32 buyout,
+                             NeedMoneyFor& needMoneyFor);
+    NeedMoneyFor GetBudgetTypeForUsage(ItemUsage usage) const;
     bool BuyItem(VendorItemData const* tItems, ObjectGuid vendorguid, ItemTemplate const* proto);
     bool TradeItem(FindItemVisitor* visitor, int8 slot);
     bool TradeItem(Item const* item, int8 slot);
